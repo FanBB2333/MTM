@@ -53,13 +53,9 @@ A cross-platform Flutter application for reading and writing NFC/RFID cards usin
 
 3. Run the application:
    ```bash
-   flutter run
+   flutter run -d macos
    ```
 
-   For web:
-   ```bash
-   flutter run -d web-server --web-port 8080
-   ```
 
 ## Usage
 
