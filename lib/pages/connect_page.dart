@@ -245,26 +245,38 @@ class _ConnectPageState extends State<ConnectPage> {
                   ],
                 ),
               ),
-              // 扫描状态
-              if (_pn532Service.isScanning)
-                Container(
+              // 扫描状态 (可点击暂停/恢复)
+              GestureDetector(
+                onTap: () {
+                  if (_pn532Service.isScanning) {
+                    _pn532Service.stopScanning();
+                  } else {
+                    _pn532Service.startScanning();
+                  }
+                  setState(() {});
+                },
+                child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: AppColors.primary,
+                    color: _pn532Service.isScanning ? AppColors.primary : AppColors.textSecondary,
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      CupertinoActivityIndicator(radius: 8),
-                      SizedBox(width: 8),
+                      if (_pn532Service.isScanning)
+                        const CupertinoActivityIndicator(radius: 8)
+                      else
+                        const Icon(CupertinoIcons.pause_fill, size: 14, color: Colors.white),
+                      const SizedBox(width: 8),
                       Text(
-                        'Scanning',
-                        style: TextStyle(fontSize: 12),
+                        _pn532Service.isScanning ? 'Scanning' : 'Paused',
+                        style: const TextStyle(fontSize: 12, color: Colors.white),
                       ),
                     ],
                   ),
                 ),
+              ),
             ],
           ),
           const SizedBox(height: 24),

@@ -144,7 +144,7 @@ class PN532Service extends ChangeNotifier {
   }
 
   /// 开始持续扫描卡片
-  void startScanning({Duration interval = const Duration(milliseconds: 200)}) {
+  void startScanning({Duration interval = const Duration(milliseconds: 500)}) {
     if (!isConnected || _isScanning) return;
     
     _isScanning = true;
