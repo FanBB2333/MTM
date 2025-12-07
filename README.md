@@ -63,6 +63,8 @@ A cross-platform Flutter application for reading and writing NFC/RFID cards usin
    - Navigate to the Connect page
    - Click the refresh button to scan for available serial ports
    - Select your PN532 device from the list to connect
+   
+   ![Connect Page](docs/images/main.png)
 
 2. **Read Card**:
    - Go to the Read Card page
@@ -71,14 +73,25 @@ A cross-platform Flutter application for reading and writing NFC/RFID cards usin
    - Place a card on the reader and click "Start Reading"
    - View the card data in hex format
 
+   ![Read Card Page](docs/images/read.png)
+
 3. **Write Card**:
    - Go to the Write Card page
    - Load card data from a saved file or use data from a previous read
    - Place a blank card on the reader and start writing
 
+   ![Write Card Page](docs/images/write.png)
+
 4. **Save/Load Card Data**:
    - After reading a card, click "Save" to export the data to a file
    - Use the Saved Cards page to manage your dump files
+
+   ![Saved Cards Page](docs/images/saved.png)
+
+5. **Settings**:
+   - Configure application settings such as theme and language
+
+   ![Settings Page](docs/images/settings.png)
 
 
 ## Dependencies
