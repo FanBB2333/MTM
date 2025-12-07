@@ -4,7 +4,9 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import '../theme/app_colors.dart';
 import '../services/pn532_service.dart';
+import '../services/card_file_service.dart';
 import '../models/card_info.dart';
+import '../models/card_dump.dart';
 import '../l10n/app_localizations.dart';
 
 /// 读卡页面
@@ -371,12 +373,27 @@ class _ReadCardPageState extends State<ReadCardPage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                OutlinedButton.icon(
+                ElevatedButton.icon(
+                  onPressed: _saveToFile,
+                  icon: const Icon(CupertinoIcons.square_arrow_down, size: 16),
+                  label: Text(l10n.saveToFile),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.cardBackground,
+                    foregroundColor: AppColors.textPrimary,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    side: BorderSide(color: AppColors.primary),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton.icon(
                   onPressed: _copyAllData,
                   icon: const Icon(CupertinoIcons.doc_on_clipboard, size: 16),
                   label: Text(l10n.copyAll),
-                  style: OutlinedButton.styleFrom(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.cardBackground,
+                    foregroundColor: AppColors.textPrimary,
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    side: BorderSide(color: AppColors.primary),
                   ),
                 ),
               ],
@@ -449,6 +466,61 @@ class _ReadCardPageState extends State<ReadCardPage> {
         width: 300,
       ),
     );
+  }
+
+  Future<void> _saveToFile() async {
+    final l10n = AppLocalizations.of(context);
+    
+    if (_sectorData == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.noDataToSave),
+          behavior: SnackBarBehavior.floating,
+          width: 300,
+        ),
+      );
+      return;
+    }
+    
+    try {
+      // 创建 CardDump 对象
+      final dump = CardDump.fromReadData(
+        cardInfo: _currentCard,
+        sectorData: _sectorData!,
+      );
+      
+      // 生成文件名 (不包含扩展名，file_picker 会自动添加)
+      final suggestedName = _currentCard != null 
+          ? 'card_${_currentCard!.uidHex.replaceAll(':', '')}'
+          : 'card_${DateTime.now().millisecondsSinceEpoch}';
+      
+      // 保存文件
+      final path = await CardFileService.instance.saveCardDump(
+        dump, 
+        suggestedName: suggestedName,
+      );
+      
+      if (path != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.fileSaved),
+            behavior: SnackBarBehavior.floating,
+            width: 300,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${l10n.fileSaveError}: $e'),
+            behavior: SnackBarBehavior.floating,
+            width: 400,
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildCardInfoSection() {

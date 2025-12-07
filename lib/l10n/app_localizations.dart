@@ -90,6 +90,12 @@ class AppLocalizations {
   String get copyData => get('copyData');
   String get copyAll => get('copyAll');
   String get dataCopied => get('dataCopied');
+  String get saveToFile => get('saveToFile');
+  String get fileSaved => get('fileSaved');
+  String get fileLoadError => get('fileLoadError');
+  String get fileSaveError => get('fileSaveError');
+  String get loadedFromFile => get('loadedFromFile');
+  String get noDataToSave => get('noDataToSave');
   
   // === Write Card Page ===
   String get writeCardTitle => get('writeCardTitle');

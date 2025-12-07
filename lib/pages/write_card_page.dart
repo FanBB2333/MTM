@@ -1,7 +1,11 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import '../theme/app_colors.dart';
 import '../l10n/app_localizations.dart';
+import '../models/card_dump.dart';
+import '../services/card_file_service.dart';
+import '../services/pn532_service.dart';
 
 /// 写卡页面
 class WriteCardPage extends StatefulWidget {
@@ -12,14 +16,22 @@ class WriteCardPage extends StatefulWidget {
 }
 
 class _WriteCardPageState extends State<WriteCardPage> {
+  final _pn532Service = PN532Service.instance;
+  
   String _dataSource = 'file';  // file, clone
   bool _writeBlock0 = false;
   bool _isWriting = false;
   double _progress = 0;
+  
+  // 已加载的数据
+  CardDump? _loadedDump;
+  String? _loadedFileName;
+  String? _errorMessage;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final isConnected = _pn532Service.isConnected;
     
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -27,7 +39,7 @@ class _WriteCardPageState extends State<WriteCardPage> {
           padding: const EdgeInsets.all(32),
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              minHeight: constraints.maxHeight - 64, // 减去padding
+              minHeight: constraints.maxHeight - 64,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -44,10 +56,12 @@ class _WriteCardPageState extends State<WriteCardPage> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  l10n.writeCardSubtitle,
+                  isConnected 
+                      ? l10n.writeCardSubtitle
+                      : l10n.readCardNotConnected,
                   style: TextStyle(
                     fontSize: 14,
-                    color: AppColors.textSecondary,
+                    color: isConnected ? AppColors.textSecondary : AppColors.warning,
                   ),
                 ),
                 
@@ -55,6 +69,18 @@ class _WriteCardPageState extends State<WriteCardPage> {
 
                 // 数据源选择
                 _buildSourceSection(l10n),
+                
+                // 已加载文件预览
+                if (_loadedDump != null) ...[
+                  const SizedBox(height: 24),
+                  _buildLoadedDataPreview(l10n),
+                ],
+                
+                // 错误信息
+                if (_errorMessage != null) ...[
+                  const SizedBox(height: 16),
+                  _buildErrorMessage(),
+                ],
                 
                 const SizedBox(height: 24),
                 
@@ -98,9 +124,10 @@ class _WriteCardPageState extends State<WriteCardPage> {
         const SizedBox(height: 12),
         _buildSourceCard(
           l10n.loadFromFile,
-          l10n.selectDumpFile,
+          _loadedFileName ?? l10n.selectDumpFile,
           CupertinoIcons.folder_open,
           'file',
+          onTap: _loadFromFile,
         ),
         const SizedBox(height: 12),
         _buildSourceCard(
@@ -113,10 +140,15 @@ class _WriteCardPageState extends State<WriteCardPage> {
     );
   }
 
-  Widget _buildSourceCard(String title, String subtitle, IconData icon, String value) {
+  Widget _buildSourceCard(String title, String subtitle, IconData icon, String value, {VoidCallback? onTap}) {
     final isSelected = _dataSource == value;
     return GestureDetector(
-      onTap: () => setState(() => _dataSource = value),
+      onTap: () {
+        setState(() => _dataSource = value);
+        if (value == 'file' && onTap != null) {
+          onTap();
+        }
+      },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(16),
@@ -154,6 +186,7 @@ class _WriteCardPageState extends State<WriteCardPage> {
                       fontSize: 12,
                       color: AppColors.textSecondary,
                     ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
@@ -166,6 +199,97 @@ class _WriteCardPageState extends State<WriteCardPage> {
               ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildLoadedDataPreview(AppLocalizations l10n) {
+    final dump = _loadedDump!;
+    final sectorCount = dump.sectorData.length;
+    final validSectors = dump.sectorData.values.where((blocks) => 
+        blocks.any((b) => b != null && b.any((byte) => byte != 0))
+    ).length;
+    
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.cardBackground,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.success.withAlpha(100)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(CupertinoIcons.checkmark_circle_fill, color: AppColors.success, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                l10n.loadedFromFile,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.success,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (dump.cardInfo != null) ...[
+            _buildPreviewRow('UID', dump.cardInfo!.uidHex),
+            _buildPreviewRow('Type', dump.cardInfo!.cardType),
+          ],
+          _buildPreviewRow('Sectors', '$validSectors / $sectorCount'),
+          _buildPreviewRow('Size', '${dump.totalBytes} bytes'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPreviewRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            ),
+          ),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 12,
+              fontFamily: 'monospace',
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorMessage() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.error.withAlpha(25),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.error.withAlpha(75)),
+      ),
+      child: Row(
+        children: [
+          Icon(CupertinoIcons.exclamationmark_circle, color: AppColors.error, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              _errorMessage!,
+              style: TextStyle(color: AppColors.error, fontSize: 13),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -210,10 +334,13 @@ class _WriteCardPageState extends State<WriteCardPage> {
   }
 
   Widget _buildWriteButton(AppLocalizations l10n) {
+    final canWrite = _pn532Service.isConnected && 
+        ((_dataSource == 'file' && _loadedDump != null) || _dataSource == 'clone');
+    
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton.icon(
-        onPressed: _isWriting ? null : _startWriting,
+        onPressed: (_isWriting || !canWrite) ? null : _startWriting,
         icon: _isWriting
             ? const CupertinoActivityIndicator(radius: 10)
             : const Icon(CupertinoIcons.pencil),
@@ -260,9 +387,9 @@ class _WriteCardPageState extends State<WriteCardPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.warning.withOpacity(0.1),
+        color: AppColors.warning.withAlpha(25),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.warning.withOpacity(0.3)),
+        border: Border.all(color: AppColors.warning.withAlpha(75)),
       ),
       child: Row(
         children: [
@@ -286,30 +413,124 @@ class _WriteCardPageState extends State<WriteCardPage> {
     );
   }
 
+  Future<void> _loadFromFile() async {
+    final l10n = AppLocalizations.of(context);
+    
+    try {
+      setState(() => _errorMessage = null);
+      
+      final dump = await CardFileService.instance.loadCardDump();
+      
+      if (dump != null) {
+        setState(() {
+          _loadedDump = dump;
+          _loadedFileName = 'Loaded ${dump.totalBytes} bytes';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = '${l10n.fileLoadError}: $e';
+        _loadedDump = null;
+        _loadedFileName = null;
+      });
+    }
+  }
+
   Future<void> _startWriting() async {
     final l10n = AppLocalizations.of(context);
+    
+    if (_dataSource == 'file' && _loadedDump == null) {
+      setState(() => _errorMessage = 'Please load a dump file first.');
+      return;
+    }
     
     setState(() {
       _isWriting = true;
       _progress = 0;
+      _errorMessage = null;
     });
     
-    // 模拟写入进度
-    for (int i = 0; i <= 16; i++) {
-      await Future.delayed(const Duration(milliseconds: 200));
-      setState(() => _progress = i / 16);
-    }
-    
-    setState(() => _isWriting = false);
-    
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(l10n.writeCompleted),
-          backgroundColor: AppColors.success,
-        ),
-      );
+    try {
+      // 读取目标卡片
+      final targetCard = await _pn532Service.readCard();
+      if (targetCard == null) {
+        setState(() {
+          _errorMessage = 'No card detected. Please place a card on the reader.';
+          _isWriting = false;
+        });
+        return;
+      }
+      
+      final dump = _loadedDump!;
+      final sectorCount = dump.sectorCount;
+      int writtenSectors = 0;
+      
+      // 默认密钥
+      final defaultKey = Uint8List.fromList([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]);
+      
+      for (int sector = 0; sector < sectorCount; sector++) {
+        final blocks = dump.sectorData[sector];
+        if (blocks == null) continue;
+        
+        final firstBlock = sector * 4;
+        
+        // 认证
+        bool authed = await _pn532Service.mifareAuth(
+          firstBlock, 
+          targetCard.uid, 
+          key: defaultKey,
+          keyType: 'A',
+        );
+        
+        if (!authed) {
+          authed = await _pn532Service.mifareAuth(
+            firstBlock, 
+            targetCard.uid, 
+            key: defaultKey,
+            keyType: 'B',
+          );
+        }
+        
+        if (!authed) {
+          // 跳过无法认证的扇区
+          continue;
+        }
+        
+        // 写入块 (跳过 block 0 除非明确选择)
+        for (int i = 0; i < blocks.length; i++) {
+          final blockNum = firstBlock + i;
+          
+          // 跳过 block 0 (UID block) 除非用户选择写入
+          if (blockNum == 0 && !_writeBlock0) continue;
+          
+          // 跳过 trailer block (每个扇区最后一块包含密钥)
+          if (i == 3) continue;
+          
+          final blockData = blocks[i];
+          if (blockData != null && blockData.length == 16) {
+            await _pn532Service.mifareWriteBlock(blockNum, blockData);
+          }
+        }
+        
+        writtenSectors++;
+        setState(() => _progress = writtenSectors / sectorCount);
+      }
+      
+      setState(() => _isWriting = false);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.writeCompleted),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Write error: $e';
+        _isWriting = false;
+      });
     }
   }
 }
-

@@ -53,6 +53,12 @@ const Map<String, String> l10nZhCN = {
   'copyData': '复制数据',
   'copyAll': '复制全部',
   'dataCopied': '数据已复制到剪贴板',
+  'saveToFile': '保存到文件',
+  'fileSaved': '文件保存成功',
+  'fileLoadError': '加载文件失败',
+  'fileSaveError': '保存文件失败',
+  'loadedFromFile': '已从文件加载',
+  'noDataToSave': '没有可保存的数据，请先读取卡片。',
   
   // Write Card Page
   'writeCardTitle': '写入卡片',

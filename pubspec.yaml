@@ -43,6 +43,9 @@ dependencies:
   
   # Serial port communication
   flserial: ^0.3.5
+  
+  # File picker for save/load dialogs
+  file_picker: ^8.0.0
 
 
 dev_dependencies:

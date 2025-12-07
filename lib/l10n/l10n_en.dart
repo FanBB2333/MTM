@@ -53,6 +53,12 @@ const Map<String, String> l10nEn = {
   'copyData': 'Copy Data',
   'copyAll': 'Copy All',
   'dataCopied': 'Data copied to clipboard',
+  'saveToFile': 'Save to File',
+  'fileSaved': 'File saved successfully',
+  'fileLoadError': 'Failed to load file',
+  'fileSaveError': 'Failed to save file',
+  'loadedFromFile': 'Loaded from file',
+  'noDataToSave': 'No data to save. Please read a card first.',
   
   // Write Card Page
   'writeCardTitle': 'Write Card',
