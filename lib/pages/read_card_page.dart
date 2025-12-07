@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 import '../theme/app_colors.dart';
 import '../services/pn532_service.dart';
 import '../models/card_info.dart';
+import '../l10n/app_localizations.dart';
 
 /// 读卡页面
 class ReadCardPage extends StatefulWidget {
@@ -55,6 +56,7 @@ class _ReadCardPageState extends State<ReadCardPage> {
   @override
   Widget build(BuildContext context) {
     final isConnected = _pn532Service.isConnected;
+    final l10n = AppLocalizations.of(context);
     
     return Padding(
       padding: const EdgeInsets.all(32),
@@ -62,9 +64,9 @@ class _ReadCardPageState extends State<ReadCardPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 标题
-          const Text(
-            'Read Card',
-            style: TextStyle(
+          Text(
+            l10n.readCardTitle,
+            style: const TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.w600,
               color: AppColors.textPrimary,
@@ -73,8 +75,8 @@ class _ReadCardPageState extends State<ReadCardPage> {
           const SizedBox(height: 8),
           Text(
             isConnected 
-                ? 'Read data from NFC cards (Mifare Classic 1K/4K)'
-                : 'Please connect to a PN532 device first',
+                ? l10n.readCardSubtitle
+                : l10n.readCardNotConnected,
             style: TextStyle(
               fontSize: 14,
               color: isConnected ? AppColors.textSecondary : AppColors.warning,
@@ -84,20 +86,20 @@ class _ReadCardPageState extends State<ReadCardPage> {
           const SizedBox(height: 32),
 
           if (!isConnected)
-            _buildNotConnectedWarning()
+            _buildNotConnectedWarning(l10n)
           else ...[
             // 读取模式选择
-            _buildModeSection(),
+            _buildModeSection(l10n),
             
             const SizedBox(height: 24),
             
             // 密钥输入
-            _buildKeySection(),
+            _buildKeySection(l10n),
             
             const SizedBox(height: 32),
             
             // 读取按钮
-            _buildReadButton(),
+            _buildReadButton(l10n),
             
             // 错误信息
             if (_errorMessage != null) ...[
@@ -109,7 +111,7 @@ class _ReadCardPageState extends State<ReadCardPage> {
             
             // 数据展示区
             Expanded(
-              child: _buildDataView(),
+              child: _buildDataView(l10n),
             ),
           ],
         ],
@@ -117,7 +119,7 @@ class _ReadCardPageState extends State<ReadCardPage> {
     );
   }
 
-  Widget _buildNotConnectedWarning() {
+  Widget _buildNotConnectedWarning(AppLocalizations l10n) {
     return Expanded(
       child: Center(
         child: Column(
@@ -129,9 +131,9 @@ class _ReadCardPageState extends State<ReadCardPage> {
               color: AppColors.warning,
             ),
             const SizedBox(height: 16),
-            const Text(
-              'PN532 Not Connected',
-              style: TextStyle(
+            Text(
+              l10n.pn532NotConnected,
+              style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
                 color: AppColors.textPrimary,
@@ -139,7 +141,7 @@ class _ReadCardPageState extends State<ReadCardPage> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Go to Connect page to connect your device',
+              l10n.goToConnectPage,
               style: TextStyle(
                 fontSize: 14,
                 color: AppColors.textSecondary,
@@ -151,13 +153,13 @@ class _ReadCardPageState extends State<ReadCardPage> {
     );
   }
 
-  Widget _buildModeSection() {
+  Widget _buildModeSection(AppLocalizations l10n) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Read Mode',
-          style: TextStyle(
+        Text(
+          l10n.readMode,
+          style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
             color: AppColors.textSecondary,
@@ -166,11 +168,11 @@ class _ReadCardPageState extends State<ReadCardPage> {
         const SizedBox(height: 12),
         Row(
           children: [
-            _buildModeChip('Full Card', 'full'),
+            _buildModeChip(l10n.fullCard, 'full'),
             const SizedBox(width: 12),
-            _buildModeChip('Sector', 'sector'),
+            _buildModeChip(l10n.sector, 'sector'),
             const SizedBox(width: 12),
-            _buildModeChip('Block', 'block'),
+            _buildModeChip(l10n.block, 'block'),
           ],
         ),
         // 额外参数输入
@@ -232,15 +234,15 @@ class _ReadCardPageState extends State<ReadCardPage> {
     );
   }
 
-  Widget _buildKeySection() {
+  Widget _buildKeySection(AppLocalizations l10n) {
     return Row(
       children: [
         Expanded(
-          child: _buildKeyInput('Key A', _keyAController),
+          child: _buildKeyInput(l10n.keyA, _keyAController),
         ),
         const SizedBox(width: 16),
         Expanded(
-          child: _buildKeyInput('Key B', _keyBController),
+          child: _buildKeyInput(l10n.keyB, _keyBController),
         ),
       ],
     );
@@ -277,7 +279,7 @@ class _ReadCardPageState extends State<ReadCardPage> {
     );
   }
 
-  Widget _buildReadButton() {
+  Widget _buildReadButton(AppLocalizations l10n) {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton.icon(
@@ -285,7 +287,7 @@ class _ReadCardPageState extends State<ReadCardPage> {
         icon: _isReading
             ? const CupertinoActivityIndicator(radius: 10)
             : const Icon(CupertinoIcons.creditcard),
-        label: Text(_isReading ? 'Reading...' : 'Start Reading'),
+        label: Text(_isReading ? l10n.reading : l10n.startReading),
         style: ElevatedButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 16),
         ),
@@ -316,7 +318,7 @@ class _ReadCardPageState extends State<ReadCardPage> {
     );
   }
 
-  Widget _buildDataView() {
+  Widget _buildDataView(AppLocalizations l10n) {
     if (_currentCard == null && _sectorData == null && _blockData == null) {
       return Center(
         child: Column(
@@ -329,7 +331,7 @@ class _ReadCardPageState extends State<ReadCardPage> {
             ),
             const SizedBox(height: 16),
             Text(
-              'Place card on reader and press Start',
+              l10n.placeCardOnReader,
               style: TextStyle(
                 color: AppColors.textSecondary,
               ),

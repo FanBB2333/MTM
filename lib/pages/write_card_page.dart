@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_localizations.dart';
 
 /// 写卡页面
 class WriteCardPage extends StatefulWidget {
@@ -18,6 +19,8 @@ class _WriteCardPageState extends State<WriteCardPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    
     return LayoutBuilder(
       builder: (context, constraints) {
         return SingleChildScrollView(
@@ -31,9 +34,9 @@ class _WriteCardPageState extends State<WriteCardPage> {
               mainAxisAlignment: MainAxisAlignment.start,
               children: [
                 // 标题
-                const Text(
-                  'Write Card',
-                  style: TextStyle(
+                Text(
+                  l10n.writeCardTitle,
+                  style: const TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textPrimary,
@@ -41,7 +44,7 @@ class _WriteCardPageState extends State<WriteCardPage> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Write data to blank or UID cards',
+                  l10n.writeCardSubtitle,
                   style: TextStyle(
                     fontSize: 14,
                     color: AppColors.textSecondary,
@@ -51,27 +54,27 @@ class _WriteCardPageState extends State<WriteCardPage> {
                 const SizedBox(height: 32),
 
                 // 数据源选择
-                _buildSourceSection(),
+                _buildSourceSection(l10n),
                 
                 const SizedBox(height: 24),
                 
                 // 高级选项
-                _buildOptionsSection(),
+                _buildOptionsSection(l10n),
                 
                 const SizedBox(height: 32),
                 
                 // 写入按钮
-                _buildWriteButton(),
+                _buildWriteButton(l10n),
                 
                 const SizedBox(height: 24),
                 
                 // 进度显示
-                if (_isWriting) _buildProgress(),
+                if (_isWriting) _buildProgress(l10n),
                 
                 const SizedBox(height: 24),
                 
                 // 警告信息
-                _buildWarning(),
+                _buildWarning(l10n),
               ],
             ),
           ),
@@ -80,13 +83,13 @@ class _WriteCardPageState extends State<WriteCardPage> {
     );
   }
 
-  Widget _buildSourceSection() {
+  Widget _buildSourceSection(AppLocalizations l10n) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Data Source',
-          style: TextStyle(
+        Text(
+          l10n.dataSource,
+          style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
             color: AppColors.textSecondary,
@@ -94,15 +97,15 @@ class _WriteCardPageState extends State<WriteCardPage> {
         ),
         const SizedBox(height: 12),
         _buildSourceCard(
-          'Load from File',
-          'Select a .mfc or .bin dump file',
+          l10n.loadFromFile,
+          l10n.selectDumpFile,
           CupertinoIcons.folder_open,
           'file',
         ),
         const SizedBox(height: 12),
         _buildSourceCard(
-          'Clone from Reader',
-          'Use the last read card data',
+          l10n.cloneFromReader,
+          l10n.useLastReadData,
           CupertinoIcons.doc_on_clipboard,
           'clone',
         ),
@@ -167,13 +170,13 @@ class _WriteCardPageState extends State<WriteCardPage> {
     );
   }
 
-  Widget _buildOptionsSection() {
+  Widget _buildOptionsSection(AppLocalizations l10n) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Options',
-          style: TextStyle(
+        Text(
+          l10n.options,
+          style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
             color: AppColors.textSecondary,
@@ -190,9 +193,9 @@ class _WriteCardPageState extends State<WriteCardPage> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Write Block 0 (UID)',
-                style: TextStyle(fontSize: 14),
+              Text(
+                l10n.writeBlock0,
+                style: const TextStyle(fontSize: 14),
               ),
               CupertinoSwitch(
                 value: _writeBlock0,
@@ -206,7 +209,7 @@ class _WriteCardPageState extends State<WriteCardPage> {
     );
   }
 
-  Widget _buildWriteButton() {
+  Widget _buildWriteButton(AppLocalizations l10n) {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton.icon(
@@ -214,7 +217,7 @@ class _WriteCardPageState extends State<WriteCardPage> {
         icon: _isWriting
             ? const CupertinoActivityIndicator(radius: 10)
             : const Icon(CupertinoIcons.pencil),
-        label: Text(_isWriting ? 'Writing...' : 'Start Writing'),
+        label: Text(_isWriting ? l10n.writing : l10n.startWriting),
         style: ElevatedButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 16),
         ),
@@ -222,7 +225,7 @@ class _WriteCardPageState extends State<WriteCardPage> {
     );
   }
 
-  Widget _buildProgress() {
+  Widget _buildProgress(AppLocalizations l10n) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -230,7 +233,7 @@ class _WriteCardPageState extends State<WriteCardPage> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'Writing sectors...',
+              l10n.writingSectors,
               style: TextStyle(color: AppColors.textSecondary),
             ),
             Text(
@@ -253,7 +256,7 @@ class _WriteCardPageState extends State<WriteCardPage> {
     );
   }
 
-  Widget _buildWarning() {
+  Widget _buildWarning(AppLocalizations l10n) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -271,7 +274,7 @@ class _WriteCardPageState extends State<WriteCardPage> {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Writing Block 0 requires a UID/CUID magic card. Standard cards do not support this.',
+              l10n.writeBlock0Warning,
               style: TextStyle(
                 fontSize: 13,
                 color: AppColors.textSecondary,
@@ -284,6 +287,8 @@ class _WriteCardPageState extends State<WriteCardPage> {
   }
 
   Future<void> _startWriting() async {
+    final l10n = AppLocalizations.of(context);
+    
     setState(() {
       _isWriting = true;
       _progress = 0;
@@ -300,10 +305,11 @@ class _WriteCardPageState extends State<WriteCardPage> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Write completed successfully!'),
+          content: Text(l10n.writeCompleted),
           backgroundColor: AppColors.success,
         ),
       );
     }
   }
 }
+

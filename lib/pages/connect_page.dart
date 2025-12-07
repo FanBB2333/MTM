@@ -4,6 +4,7 @@ import '../theme/app_colors.dart';
 import '../services/serial_service.dart';
 import '../services/pn532_service.dart';
 import '../models/card_info.dart';
+import '../l10n/app_localizations.dart';
 
 /// 连接页面 - 扫描并连接PN532设备
 class ConnectPage extends StatefulWidget {
@@ -114,6 +115,7 @@ class _ConnectPageState extends State<ConnectPage> {
   @override
   Widget build(BuildContext context) {
     final isConnected = _pn532Service.isConnected;
+    final l10n = AppLocalizations.of(context);
     
     return Padding(
       padding: const EdgeInsets.all(32),
@@ -124,9 +126,9 @@ class _ConnectPageState extends State<ConnectPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Connect Device',
-                style: TextStyle(
+              Text(
+                l10n.connectTitle,
+                style: const TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w600,
                   color: AppColors.textPrimary,
@@ -138,7 +140,7 @@ class _ConnectPageState extends State<ConnectPage> {
                     TextButton.icon(
                       onPressed: _disconnectDevice,
                       icon: const Icon(CupertinoIcons.xmark_circle, size: 18),
-                      label: const Text('Disconnect'),
+                      label: Text(l10n.disconnect),
                       style: TextButton.styleFrom(
                         foregroundColor: AppColors.error,
                       ),
@@ -164,8 +166,8 @@ class _ConnectPageState extends State<ConnectPage> {
           const SizedBox(height: 8),
           Text(
             isConnected 
-                ? 'Connected to ${_pn532Service.connectedPort}'
-                : 'Select a serial port to connect to your PN532 reader',
+                ? '${l10n.connected}: ${_pn532Service.connectedPort}'
+                : l10n.connectSubtitle,
             style: TextStyle(
               fontSize: 14,
               color: isConnected ? AppColors.success : AppColors.textSecondary,
@@ -386,33 +388,38 @@ class _ConnectPageState extends State<ConnectPage> {
   }
 
   Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            CupertinoIcons.antenna_radiowaves_left_right,
-            size: 64,
-            color: AppColors.textDisabled,
+    return Builder(
+      builder: (context) {
+        final l10n = AppLocalizations.of(context);
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                CupertinoIcons.antenna_radiowaves_left_right,
+                size: 64,
+                color: AppColors.textDisabled,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                l10n.noDevicesFound,
+                style: TextStyle(
+                  fontSize: 18,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Make sure your PN532 is connected via USB',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textDisabled,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
-          Text(
-            'No devices found',
-            style: TextStyle(
-              fontSize: 18,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Make sure your PN532 is connected via USB',
-            style: TextStyle(
-              fontSize: 14,
-              color: AppColors.textDisabled,
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 

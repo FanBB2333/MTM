@@ -1,0 +1,87 @@
+/// Simplified Chinese translations (简体中文)
+const Map<String, String> l10nZhCN = {
+  // Common
+  'appTitle': 'PN532 NFC 工具',
+  'connected': '已连接',
+  'disconnected': '未连接',
+  
+  // Sidebar Menu
+  'menuConnect': '连接',
+  'menuReadCard': '读取卡片',
+  'menuWriteCard': '写入卡片',
+  'menuSavedCards': '已保存卡片',
+  'menuSettings': '设置',
+  
+  // Connect Page
+  'connectTitle': '连接设备',
+  'connectSubtitle': '选择并连接 PN532 NFC 读卡器',
+  'availableDevices': '可用设备',
+  'scanningDevices': '正在扫描设备...',
+  'noDevicesFound': '未找到设备',
+  'refresh': '刷新',
+  'connect': '连接',
+  'disconnect': '断开',
+  'connecting': '连接中...',
+  'deviceConnected': '设备连接成功',
+  'connectionFailed': '连接失败',
+  'firmwareVersion': '固件版本',
+  
+  // Read Card Page
+  'readCardTitle': '读取卡片',
+  'readCardSubtitle': '从 NFC 卡片读取数据（Mifare Classic 1K/4K）',
+  'readCardNotConnected': '请先连接 PN532 设备',
+  'readMode': '读取模式',
+  'fullCard': '完整卡片',
+  'sector': '扇区',
+  'block': '块',
+  'keyA': '密钥 A',
+  'keyB': '密钥 B',
+  'startReading': '开始读取',
+  'reading': '读取中...',
+  'cardInformation': '卡片信息',
+  'sectorData': '扇区数据',
+  'noCardDetected': '未检测到卡片，请将卡片放在读卡器上。',
+  'placeCardOnReader': '将卡片放在读卡器上并点击开始',
+  'pn532NotConnected': 'PN532 未连接',
+  'goToConnectPage': '前往连接页面连接您的设备',
+  'authFailed': '块认证失败',
+  'notMifareClassic': '此卡片类型不支持 Mifare Classic 读取操作。',
+  
+  // Write Card Page
+  'writeCardTitle': '写入卡片',
+  'writeCardSubtitle': '将数据写入空白卡或 UID 卡',
+  'dataSource': '数据来源',
+  'loadFromFile': '从文件加载',
+  'selectDumpFile': '选择 .mfc 或 .bin 转储文件',
+  'cloneFromReader': '从读卡器克隆',
+  'useLastReadData': '使用上次读取的卡片数据',
+  'options': '选项',
+  'writeBlock0': '写入块 0（UID）',
+  'startWriting': '开始写入',
+  'writing': '写入中...',
+  'writingSectors': '正在写入扇区...',
+  'writeCompleted': '写入成功完成！',
+  'writeBlock0Warning': '写入块 0 需要 UID/CUID 魔术卡。普通卡不支持此功能。',
+  
+  // Saved Cards Page
+  'savedCardsTitle': '已保存卡片',
+  'savedCardsSubtitle': '查看和管理保存的卡片转储',
+  'noSavedCards': '没有保存的卡片',
+  'saveCardsHint': '读取卡片并保存后将显示在此处',
+  
+  // Settings Page
+  'settingsTitle': '设置',
+  'settingsSubtitle': '配置应用程序偏好设置',
+  'serialPort': '串口',
+  'baudRate': '波特率',
+  'autoConnect': '自动连接',
+  'autoConnectDesc': '自动连接到上次使用的设备',
+  'general': '通用',
+  'soundEffects': '音效',
+  'soundEffectsDesc': '检测到卡片时播放声音',
+  'language': '语言',
+  'about': '关于',
+  'version': '版本',
+  'pn532Driver': 'PN532 驱动',
+  'builtIn': '内置',
+};

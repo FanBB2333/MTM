@@ -1,0 +1,87 @@
+/// English translations
+const Map<String, String> l10nEn = {
+  // Common
+  'appTitle': 'PN532 NFC Tools',
+  'connected': 'Connected',
+  'disconnected': 'Disconnected',
+  
+  // Sidebar Menu
+  'menuConnect': 'Connect',
+  'menuReadCard': 'Read Card',
+  'menuWriteCard': 'Write Card',
+  'menuSavedCards': 'Saved Cards',
+  'menuSettings': 'Settings',
+  
+  // Connect Page
+  'connectTitle': 'Connect',
+  'connectSubtitle': 'Select and connect to a PN532 NFC reader',
+  'availableDevices': 'Available Devices',
+  'scanningDevices': 'Scanning for devices...',
+  'noDevicesFound': 'No devices found',
+  'refresh': 'Refresh',
+  'connect': 'Connect',
+  'disconnect': 'Disconnect',
+  'connecting': 'Connecting...',
+  'deviceConnected': 'Device connected successfully',
+  'connectionFailed': 'Connection failed',
+  'firmwareVersion': 'Firmware Version',
+  
+  // Read Card Page
+  'readCardTitle': 'Read Card',
+  'readCardSubtitle': 'Read data from NFC cards (Mifare Classic 1K/4K)',
+  'readCardNotConnected': 'Please connect to a PN532 device first',
+  'readMode': 'Read Mode',
+  'fullCard': 'Full Card',
+  'sector': 'Sector',
+  'block': 'Block',
+  'keyA': 'Key A',
+  'keyB': 'Key B',
+  'startReading': 'Start Reading',
+  'reading': 'Reading...',
+  'cardInformation': 'Card Information',
+  'sectorData': 'Sector Data',
+  'noCardDetected': 'No card detected. Please place a card on the reader.',
+  'placeCardOnReader': 'Place card on reader and press Start',
+  'pn532NotConnected': 'PN532 Not Connected',
+  'goToConnectPage': 'Go to Connect page to connect your device',
+  'authFailed': 'Authentication failed for block',
+  'notMifareClassic': 'This card type does not support Mifare Classic read operations.',
+  
+  // Write Card Page
+  'writeCardTitle': 'Write Card',
+  'writeCardSubtitle': 'Write data to blank or UID cards',
+  'dataSource': 'Data Source',
+  'loadFromFile': 'Load from File',
+  'selectDumpFile': 'Select a .mfc or .bin dump file',
+  'cloneFromReader': 'Clone from Reader',
+  'useLastReadData': 'Use the last read card data',
+  'options': 'Options',
+  'writeBlock0': 'Write Block 0 (UID)',
+  'startWriting': 'Start Writing',
+  'writing': 'Writing...',
+  'writingSectors': 'Writing sectors...',
+  'writeCompleted': 'Write completed successfully!',
+  'writeBlock0Warning': 'Writing Block 0 requires a UID/CUID magic card. Standard cards do not support this.',
+  
+  // Saved Cards Page
+  'savedCardsTitle': 'Saved Cards',
+  'savedCardsSubtitle': 'View and manage saved card dumps',
+  'noSavedCards': 'No Saved Cards',
+  'saveCardsHint': 'Read a card and save it to see it here',
+  
+  // Settings Page
+  'settingsTitle': 'Settings',
+  'settingsSubtitle': 'Configure application preferences',
+  'serialPort': 'Serial Port',
+  'baudRate': 'Baud Rate',
+  'autoConnect': 'Auto Connect',
+  'autoConnectDesc': 'Automatically connect to the last used device',
+  'general': 'General',
+  'soundEffects': 'Sound Effects',
+  'soundEffectsDesc': 'Play sound when card is detected',
+  'language': 'Language',
+  'about': 'About',
+  'version': 'Version',
+  'pn532Driver': 'PN532 Driver',
+  'builtIn': 'Built-in',
+};

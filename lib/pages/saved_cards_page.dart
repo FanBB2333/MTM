@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import '../theme/app_colors.dart';
+import '../l10n/app_localizations.dart';
 
 /// 卡包页面 - 管理已保存的卡片数据
 class SavedCardsPage extends StatelessWidget {
@@ -8,12 +9,10 @@ class SavedCardsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    
     // 模拟数据
-    final savedCards = [
-      {'name': 'Home Key', 'type': 'Mifare 1K', 'date': '2024-12-06'},
-      {'name': 'Office Card', 'type': 'Mifare 1K', 'date': '2024-12-05'},
-      {'name': 'Backup #1', 'type': 'Mifare 4K', 'date': '2024-12-01'},
-    ];
+    final savedCards = <Map<String, String>>[];
 
     return Padding(
       padding: const EdgeInsets.all(32),
@@ -24,9 +23,9 @@ class SavedCardsPage extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Saved Cards',
-                style: TextStyle(
+              Text(
+                l10n.savedCardsTitle,
+                style: const TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w600,
                   color: AppColors.textPrimary,
@@ -42,7 +41,7 @@ class SavedCardsPage extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Manage your saved dump files (.mfc, .bin)',
+            l10n.savedCardsSubtitle,
             style: TextStyle(
               fontSize: 14,
               color: AppColors.textSecondary,
@@ -54,7 +53,7 @@ class SavedCardsPage extends StatelessWidget {
           // 卡片列表
           Expanded(
             child: savedCards.isEmpty
-                ? _buildEmptyState()
+                ? _buildEmptyState(l10n)
                 : _buildCardGrid(savedCards),
           ),
         ],
@@ -62,7 +61,7 @@ class SavedCardsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(AppLocalizations l10n) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -74,7 +73,7 @@ class SavedCardsPage extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            'No saved cards yet',
+            l10n.noSavedCards,
             style: TextStyle(
               fontSize: 18,
               color: AppColors.textSecondary,
@@ -82,7 +81,7 @@ class SavedCardsPage extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Read a card and save it to see it here',
+            l10n.saveCardsHint,
             style: TextStyle(
               fontSize: 14,
               color: AppColors.textDisabled,

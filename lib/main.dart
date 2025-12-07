@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'theme/app_theme.dart';
 import 'theme/app_colors.dart';
 import 'widgets/sidebar.dart';
@@ -7,6 +8,8 @@ import 'pages/read_card_page.dart';
 import 'pages/write_card_page.dart';
 import 'pages/saved_cards_page.dart';
 import 'pages/settings_page.dart';
+import 'l10n/app_localizations.dart';
+import 'services/locale_provider.dart';
 
 void main() {
   runApp(const PN532App());
@@ -18,14 +21,28 @@ class PN532App extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'PN532 NFC Tools',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      home: const MainScreen(),
+    return ListenableBuilder(
+      listenable: LocaleProvider.instance,
+      builder: (context, child) {
+        return MaterialApp(
+          title: 'PN532 NFC Tools',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightTheme,
+          locale: LocaleProvider.instance.locale,
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          home: const MainScreen(),
+        );
+      },
     );
   }
 }
+
 
 /// 主界面 - 左右分栏布局
 class MainScreen extends StatefulWidget {

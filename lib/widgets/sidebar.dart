@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import '../theme/app_colors.dart';
 import '../services/pn532_service.dart';
+import '../l10n/app_localizations.dart';
 import 'menu_item.dart';
 
 /// 侧边栏组件
@@ -23,13 +24,13 @@ class Sidebar extends StatefulWidget {
 class _SidebarState extends State<Sidebar> {
   final _pn532Service = PN532Service.instance;
 
-  // 菜单项配置
-  static const List<MenuItemData> menuItems = [
-    MenuItemData(icon: CupertinoIcons.house_fill, title: 'Connect', index: 0),
-    MenuItemData(icon: CupertinoIcons.creditcard, title: 'Read Card', index: 1),
-    MenuItemData(icon: CupertinoIcons.pencil, title: 'Write Card', index: 2),
-    MenuItemData(icon: CupertinoIcons.folder_fill, title: 'Saved Cards', index: 3),
-    MenuItemData(icon: CupertinoIcons.gear, title: 'Settings', index: 4),
+  // 菜单项图标配置
+  static const List<IconData> menuIcons = [
+    CupertinoIcons.house_fill,
+    CupertinoIcons.creditcard,
+    CupertinoIcons.pencil,
+    CupertinoIcons.folder_fill,
+    CupertinoIcons.gear,
   ];
 
   @override
@@ -50,8 +51,21 @@ class _SidebarState extends State<Sidebar> {
     }
   }
 
+  List<String> _getMenuTitles(AppLocalizations l10n) {
+    return [
+      l10n.menuConnect,
+      l10n.menuReadCard,
+      l10n.menuWriteCard,
+      l10n.menuSavedCards,
+      l10n.menuSettings,
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final menuTitles = _getMenuTitles(l10n);
+    
     return Container(
       width: 250,
       decoration: BoxDecoration(
@@ -72,21 +86,22 @@ class _SidebarState extends State<Sidebar> {
           
           // 菜单项
           Expanded(
-            child: ListView(
+            child: ListView.builder(
               padding: const EdgeInsets.symmetric(vertical: 8),
-              children: menuItems.map((item) {
+              itemCount: menuIcons.length,
+              itemBuilder: (context, index) {
                 return SidebarMenuItem(
-                  icon: item.icon,
-                  title: item.title,
-                  isActive: widget.currentIndex == item.index,
-                  onTap: () => widget.onItemSelected(item.index),
+                  icon: menuIcons[index],
+                  title: menuTitles[index],
+                  isActive: widget.currentIndex == index,
+                  onTap: () => widget.onItemSelected(index),
                 );
-              }).toList(),
+              },
             ),
           ),
 
           // 底部状态指示
-          _buildStatusIndicator(),
+          _buildStatusIndicator(l10n),
         ],
       ),
     );
@@ -139,7 +154,7 @@ class _SidebarState extends State<Sidebar> {
   }
 
   /// 底部连接状态指示器
-  Widget _buildStatusIndicator() {
+  Widget _buildStatusIndicator(AppLocalizations l10n) {
     final isConnected = _pn532Service.isConnected;
     final port = _pn532Service.connectedPort;
     
@@ -173,7 +188,7 @@ class _SidebarState extends State<Sidebar> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  isConnected ? 'Connected' : 'Disconnected',
+                  isConnected ? l10n.connected : l10n.disconnected,
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
@@ -198,3 +213,4 @@ class _SidebarState extends State<Sidebar> {
     );
   }
 }
+
