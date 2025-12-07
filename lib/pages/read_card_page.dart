@@ -460,9 +460,8 @@ class _ReadCardPageState extends State<ReadCardPage> {
           ),
           const SizedBox(height: 8),
           ...List.generate(4, (i) {
-            final blockNum = sector * 4 + i;
             final data = blocks.length > i ? blocks[i] : null;
-            return _buildBlockRow(blockNum, data, isTrailer: i == 3);
+            return _buildBlockRow(i, data, isTrailer: i == 3);
           }),
         ],
       ),
