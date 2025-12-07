@@ -1,0 +1,4 @@
+# PN532 NFC Reader Test Dependencies
+# 安装命令: pip install -r requirements.txt
+
+pyserial>=3.5
