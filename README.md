@@ -100,6 +100,7 @@ A cross-platform Flutter application for reading and writing NFC/RFID cards usin
 - `file_picker`: File save/load dialogs
 - `google_fonts`: Typography
 - `flutter_localizations`: Multi-language support
+- `libnfc`: NFC communication and reader initialization
 
 ## License
 
