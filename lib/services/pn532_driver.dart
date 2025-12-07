@@ -1,8 +1,9 @@
+import 'dart:async';
 import 'dart:typed_data';
-import 'package:flutter_libserialport/flutter_libserialport.dart';
+import 'package:flserial/flserial.dart';
 
 /// PN532 NFC读卡器驱动类
-/// 移植自Python版本的PN532驱动
+/// 使用flserial库进行串口通信
 class PN532Driver {
   // PN532 帧协议常量
   static const int preamble = 0x00;
@@ -27,31 +28,45 @@ class PN532Driver {
   // 默认密钥
   static final Uint8List defaultKey = Uint8List.fromList([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]);
 
-  final SerialPort _port;
-  final SerialPortReader _reader;
+  final FlSerial _serial;
+  final String _portName;
   final bool debug;
+  bool _isOpen = false;
+  StreamSubscription<FlSerialEventArgs>? _dataSubscription;
+  final List<int> _readBuffer = [];
+  Completer<List<int>>? _readCompleter;
 
-  PN532Driver._(this._port, this._reader, {this.debug = false});
+  PN532Driver._(this._serial, this._portName, {this.debug = false});
 
   /// 创建并初始化PN532驱动
   static Future<PN532Driver> open(String portName, {int baudRate = 115200, bool debug = false}) async {
-    final port = SerialPort(portName);
+    final serial = FlSerial();
+    serial.init();
     
-    final config = SerialPortConfig()
-      ..baudRate = baudRate
-      ..bits = 8
-      ..stopBits = 1
-      ..parity = SerialPortParity.none
-      ..setFlowControl(SerialPortFlowControl.none);
-    
-    if (!port.openReadWrite()) {
-      throw Exception('无法打开串口 $portName: ${SerialPort.lastError}');
+    // 打开端口
+    final status = serial.openPort(portName, baudRate);
+    if (status != FlOpenStatus.open) {
+      serial.free();
+      throw Exception('无法打开串口 $portName');
     }
     
-    port.config = config;
+    // 配置串口
+    serial.setByteSize8();
+    serial.setBitParityNone();
+    serial.setStopBits1();
+    serial.setFlowControlNone();
     
-    final reader = SerialPortReader(port, timeout: 1000);
-    final driver = PN532Driver._(port, reader, debug: debug);
+    final driver = PN532Driver._(serial, portName, debug: debug);
+    driver._isOpen = true;
+    
+    // 设置数据监听
+    driver._dataSubscription = serial.onSerialData.stream.listen((args) {
+      if (args.len > 0) {
+        final data = args.serial.readList();
+        driver._readBuffer.addAll(data);
+        driver._readCompleter?.complete(List.from(driver._readBuffer));
+      }
+    });
     
     // 唤醒设备
     await driver._wakeUp();
@@ -73,9 +88,9 @@ class PN532Driver {
       ...List.filled(4, 0x00),
     ]);
     
-    _port.write(wakeup);
+    _serial.write(wakeup);
     await Future.delayed(const Duration(milliseconds: 100));
-    _port.flush();
+    _readBuffer.clear();
     _log('唤醒序列已发送');
   }
 
@@ -114,52 +129,50 @@ class PN532Driver {
     _log('TX: ${frame.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}');
     
     // 清空缓冲区并发送
-    _port.flush();
-    _port.write(frame);
-    await Future.delayed(const Duration(milliseconds: 50));
+    _readBuffer.clear();
+    _serial.write(frame);
     
-    // 读取响应
+    // 等待响应
+    await Future.delayed(const Duration(milliseconds: 50));
     return await _readResponse(timeoutMs: timeoutMs);
   }
 
   /// 读取响应数据
   Future<Uint8List?> _readResponse({int timeoutMs = 500}) async {
-    final buffer = <int>[];
     final stopwatch = Stopwatch()..start();
     
     while (stopwatch.elapsedMilliseconds < timeoutMs) {
-      final bytesAvailable = _port.bytesAvailable;
-      if (bytesAvailable > 0) {
-        final data = _port.read(bytesAvailable);
-        buffer.addAll(data);
-        if (buffer.length > 10) {
-          break;
+      // 尝试直接读取
+      try {
+        final data = _serial.readList();
+        if (data.isNotEmpty) {
+          _readBuffer.addAll(data);
         }
+      } catch (e) {
+        // 忽略读取错误
+      }
+      
+      if (_readBuffer.length > 10) {
+        break;
       }
       await Future.delayed(const Duration(milliseconds: 10));
     }
     
-    if (buffer.isEmpty) {
+    if (_readBuffer.isEmpty) {
       return null;
     }
     
-    final response = Uint8List.fromList(buffer);
+    final response = Uint8List.fromList(_readBuffer);
+    _readBuffer.clear();
     _log('RX: ${response.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}');
     return response;
   }
 
   /// 读取被动目标（寻卡）
-  /// 
-  /// [cardBaud]: 卡片类型
-  /// - 0x00: ISO14443A (Mifare, NTAG等)
-  /// - 0x01: FeliCa 212kb
-  /// - 0x02: FeliCa 424kb
-  /// - 0x03: ISO14443B
-  /// - 0x04: Jewel
   Future<Map<String, dynamic>?> readPassiveTarget({int cardBaud = 0x00, int timeoutMs = 500}) async {
     final response = await _sendCommand(
       cmdInListPassiveTarget,
-      params: [0x01, cardBaud],  // 最多1张卡
+      params: [0x01, cardBaud],
       timeoutMs: timeoutMs,
     );
     
@@ -199,11 +212,11 @@ class PN532Driver {
     
     final authCmd = keyType == 'A' ? mifareAuthA : mifareAuthB;
     final authData = [
-      0x01,  // Tg (target number)
+      0x01,
       authCmd,
       blockNumber,
       ...key,
-      ...uid.sublist(0, 4),  // 只需要UID的前4字节
+      ...uid.sublist(0, 4),
     ];
     
     final response = await _sendCommand(cmdInDataExchange, params: authData, timeoutMs: 500);
@@ -212,7 +225,7 @@ class PN532Driver {
       for (int i = 0; i < response.length - 1; i++) {
         if (response[i] == pn532ToHost && response[i + 1] == 0x41) {
           if (i + 2 < response.length) {
-            return response[i + 2] == 0x00;  // 0x00 = 成功
+            return response[i + 2] == 0x00;
           }
         }
       }
@@ -262,11 +275,18 @@ class PN532Driver {
 
   /// 关闭连接
   void close() {
-    _reader.close();
-    _port.close();
-    _log('连接已关闭');
+    if (_isOpen) {
+      _dataSubscription?.cancel();
+      _serial.closePort();
+      _serial.free();
+      _isOpen = false;
+      _log('连接已关闭');
+    }
   }
 
   /// 是否已打开
-  bool get isOpen => _port.isOpen;
+  bool get isOpen => _isOpen;
+  
+  /// 端口名称
+  String get portName => _portName;
 }

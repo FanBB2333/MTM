@@ -39,7 +39,7 @@ dependencies:
   google_fonts: ^6.1.0
   
   # Serial port communication
-  flutter_libserialport: ^0.4.0
+  flserial: ^0.3.5
 
 
 dev_dependencies:
