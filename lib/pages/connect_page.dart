@@ -85,10 +85,13 @@ class _ConnectPageState extends State<ConnectPage> {
         // 开始持续扫描卡片
         _pn532Service.startScanning();
       } else {
+        // 显示详细的错误信息
+        final errorMsg = _pn532Service.lastError ?? '未知错误';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('连接失败，请检查设备'),
+            content: Text('连接失败: $errorMsg'),
             backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 5),
           ),
         );
       }

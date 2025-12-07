@@ -40,8 +40,14 @@ class PN532Service extends ChangeNotifier {
   /// 最后检测到的卡片
   CardInfo? get lastCard => _lastCard;
 
+  /// 最后一次连接错误信息
+  String? _lastError;
+  String? get lastError => _lastError;
+
   /// 连接到PN532设备
   Future<bool> connect(String portName, {int baudRate = 115200, bool debug = false}) async {
+    _lastError = null;
+    
     try {
       // 如果已连接，先断开
       if (isConnected) {
@@ -55,6 +61,7 @@ class PN532Service extends ChangeNotifier {
       
       return true;
     } catch (e) {
+      _lastError = e.toString();
       debugPrint('PN532连接失败: $e');
       return false;
     }

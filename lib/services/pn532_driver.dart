@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:flserial/flserial.dart';
+import 'package:flserial/flserial_exception.dart';
 
 /// PN532 NFC读卡器驱动类
 /// 使用flserial库进行串口通信
@@ -34,44 +35,69 @@ class PN532Driver {
   bool _isOpen = false;
   StreamSubscription<FlSerialEventArgs>? _dataSubscription;
   final List<int> _readBuffer = [];
-  Completer<List<int>>? _readCompleter;
 
   PN532Driver._(this._serial, this._portName, {this.debug = false});
 
   /// 创建并初始化PN532驱动
   static Future<PN532Driver> open(String portName, {int baudRate = 115200, bool debug = false}) async {
     final serial = FlSerial();
-    serial.init();
     
-    // 打开端口
-    final status = serial.openPort(portName, baudRate);
-    if (status != FlOpenStatus.open) {
-      serial.free();
-      throw Exception('无法打开串口 $portName');
-    }
-    
-    // 配置串口
-    serial.setByteSize8();
-    serial.setBitParityNone();
-    serial.setStopBits1();
-    serial.setFlowControlNone();
-    
-    final driver = PN532Driver._(serial, portName, debug: debug);
-    driver._isOpen = true;
-    
-    // 设置数据监听
-    driver._dataSubscription = serial.onSerialData.stream.listen((args) {
-      if (args.len > 0) {
-        final data = args.serial.readList();
-        driver._readBuffer.addAll(data);
-        driver._readCompleter?.complete(List.from(driver._readBuffer));
+    try {
+      serial.init();
+      
+      if (debug) {
+        print('[PN532] 尝试打开端口: $portName @ $baudRate bps');
       }
-    });
-    
-    // 唤醒设备
-    await driver._wakeUp();
-    
-    return driver;
+      
+      // 打开端口 - openPort 可能抛出 FlSerialException
+      final status = serial.openPort(portName, baudRate);
+      
+      if (debug) {
+        print('[PN532] openPort 返回状态: $status');
+      }
+      
+      if (status != FlOpenStatus.open) {
+        serial.free();
+        throw Exception('无法打开串口 $portName (状态: $status)');
+      }
+      
+      // 配置串口
+      serial.setByteSize8();
+      serial.setBitParityNone();
+      serial.setStopBits1();
+      serial.setFlowControlNone();
+      
+      final driver = PN532Driver._(serial, portName, debug: debug);
+      driver._isOpen = true;
+      
+      // 设置数据监听
+      driver._dataSubscription = serial.onSerialData.stream.listen((args) {
+        if (args.len > 0) {
+          try {
+            final data = args.serial.readList();
+            driver._readBuffer.addAll(data);
+          } catch (e) {
+            if (debug) print('[PN532] 数据监听读取错误: $e');
+          }
+        }
+      });
+      
+      // 唤醒设备
+      await driver._wakeUp();
+      
+      if (debug) {
+        print('[PN532] 连接成功');
+      }
+      
+      return driver;
+      
+    } on FlSerialException catch (e) {
+      serial.free();
+      throw Exception('串口错误 (${e.error}): ${e.msg}');
+    } catch (e) {
+      serial.free();
+      rethrow;
+    }
   }
 
   void _log(String msg) {
@@ -88,7 +114,12 @@ class PN532Driver {
       ...List.filled(4, 0x00),
     ]);
     
-    _serial.write(wakeup);
+    try {
+      _serial.write(wakeup);
+    } catch (e) {
+      _log('唤醒写入错误: $e');
+    }
+    
     await Future.delayed(const Duration(milliseconds: 100));
     _readBuffer.clear();
     _log('唤醒序列已发送');
@@ -130,7 +161,13 @@ class PN532Driver {
     
     // 清空缓冲区并发送
     _readBuffer.clear();
-    _serial.write(frame);
+    
+    try {
+      _serial.write(frame);
+    } catch (e) {
+      _log('发送错误: $e');
+      return null;
+    }
     
     // 等待响应
     await Future.delayed(const Duration(milliseconds: 50));
@@ -277,8 +314,12 @@ class PN532Driver {
   void close() {
     if (_isOpen) {
       _dataSubscription?.cancel();
-      _serial.closePort();
-      _serial.free();
+      try {
+        _serial.closePort();
+        _serial.free();
+      } catch (e) {
+        _log('关闭端口错误: $e');
+      }
       _isOpen = false;
       _log('连接已关闭');
     }
