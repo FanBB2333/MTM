@@ -37,6 +37,10 @@ dependencies:
   
   # Google Fonts for typography
   google_fonts: ^6.1.0
+  
+  # Serial port communication
+  flutter_libserialport: ^0.4.0
+
 
 dev_dependencies:
   flutter_test:

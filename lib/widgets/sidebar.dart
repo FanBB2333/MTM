@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import '../theme/app_colors.dart';
+import '../services/pn532_service.dart';
 import 'menu_item.dart';
 
 /// 侧边栏组件
 /// 固定宽度250px，包含Logo和菜单项
-class Sidebar extends StatelessWidget {
+class Sidebar extends StatefulWidget {
   final int currentIndex;
   final Function(int) onItemSelected;
 
@@ -15,6 +16,13 @@ class Sidebar extends StatelessWidget {
     required this.onItemSelected,
   });
 
+  @override
+  State<Sidebar> createState() => _SidebarState();
+}
+
+class _SidebarState extends State<Sidebar> {
+  final _pn532Service = PN532Service.instance;
+
   // 菜单项配置
   static const List<MenuItemData> menuItems = [
     MenuItemData(icon: CupertinoIcons.house_fill, title: 'Connect', index: 0),
@@ -23,6 +31,24 @@ class Sidebar extends StatelessWidget {
     MenuItemData(icon: CupertinoIcons.folder_fill, title: 'Saved Cards', index: 3),
     MenuItemData(icon: CupertinoIcons.gear, title: 'Settings', index: 4),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _pn532Service.addListener(_onStateChanged);
+  }
+
+  @override
+  void dispose() {
+    _pn532Service.removeListener(_onStateChanged);
+    super.dispose();
+  }
+
+  void _onStateChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,8 +78,8 @@ class Sidebar extends StatelessWidget {
                 return SidebarMenuItem(
                   icon: item.icon,
                   title: item.title,
-                  isActive: currentIndex == item.index,
-                  onTap: () => onItemSelected(item.index),
+                  isActive: widget.currentIndex == item.index,
+                  onTap: () => widget.onItemSelected(item.index),
                 );
               }).toList(),
             ),
@@ -114,13 +140,18 @@ class Sidebar extends StatelessWidget {
 
   /// 底部连接状态指示器
   Widget _buildStatusIndicator() {
+    final isConnected = _pn532Service.isConnected;
+    final port = _pn532Service.connectedPort;
+    
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: AppColors.cardBackground,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.divider),
+        border: Border.all(
+          color: isConnected ? AppColors.success.withAlpha(75) : AppColors.divider,
+        ),
       ),
       child: Row(
         children: [
@@ -128,18 +159,40 @@ class Sidebar extends StatelessWidget {
             width: 10,
             height: 10,
             decoration: BoxDecoration(
-              color: AppColors.textDisabled,  // 未连接时灰色
+              color: isConnected ? AppColors.success : AppColors.textDisabled,
               shape: BoxShape.circle,
+              boxShadow: isConnected
+                  ? [BoxShadow(color: AppColors.success.withAlpha(100), blurRadius: 6)]
+                  : null,
             ),
           ),
           const SizedBox(width: 10),
-          const Text(
-            'Disconnected',
-            style: TextStyle(
-              fontSize: 13,
-              color: AppColors.textSecondary,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  isConnected ? 'Connected' : 'Disconnected',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: isConnected ? AppColors.success : AppColors.textSecondary,
+                  ),
+                ),
+                if (isConnected && port != null)
+                  Text(
+                    port.split('/').last,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+              ],
             ),
           ),
+          if (_pn532Service.isScanning)
+            const CupertinoActivityIndicator(radius: 8),
         ],
       ),
     );
