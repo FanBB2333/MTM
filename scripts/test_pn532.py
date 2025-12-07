@@ -30,6 +30,7 @@ class PN532:
     # PN532 命令
     PN532_COMMAND_GETFIRMWAREVERSION = 0x02
     PN532_COMMAND_SAMCONFIGURATION = 0x14
+    PN532_COMMAND_RFCONFIGURATION = 0x32
     PN532_COMMAND_INLISTPASSIVETARGET = 0x4A
     PN532_COMMAND_INDATAEXCHANGE = 0x40
     
@@ -47,8 +48,37 @@ class PN532:
         self.debug = debug
         self.ser = serial.Serial(port, baudrate=baudrate, timeout=timeout)
         time.sleep(0.1)
-        self._wake_up()
+        
+        # 1. 软复位 (相当于恢复初始状态)
+        self.reset()
+        
+        # 2. 获取版本信息 (确认连接正常)
+        ver = self.get_firmware_version()
+        if ver:
+            print(f"✅ PN532 Firmware: v{ver['ver']}.{ver['rev']}")
+        
+        # 3. 重新配置
+        self.sam_configuration()
+        self.rf_configuration()
     
+    def reset(self):
+        """软复位：发送ACK终止指令并唤醒"""
+        # ACK frame: 00 00 FF 00 FF 00
+        # 用于终止任何正在进行的指令
+        self.ser.write(bytes([0x00, 0x00, 0xFF, 0x00, 0xFF, 0x00]))
+        time.sleep(0.05)
+        self._wake_up()
+
+    def get_firmware_version(self):
+        """获取固件版本"""
+        response = self._send_command(self.PN532_COMMAND_GETFIRMWAREVERSION)
+        if response:
+            # 查找响应帧: D5 03 <IC> <Ver> <Rev> <Support>
+            for i in range(len(response) - 4):
+                if response[i] == 0xD5 and response[i+1] == 0x03:
+                    return {'ic': response[i+2], 'ver': response[i+3], 'rev': response[i+4]}
+        return None
+
     def _log(self, msg):
         """调试输出"""
         if self.debug:
@@ -117,7 +147,24 @@ class PN532:
         
         return self._read_response(timeout)
     
-    def read_passive_target(self, card_baud=0x00, timeout=0.5):
+    def sam_configuration(self):
+        """配置SAM (Secure Access Module) 以启用正常模式"""
+        # Mode: 0x01 (Normal mode)
+        # Timeout: 0x14 (50ms * 20 = 1s)
+        # IRQ: 0x01 (Use IRQ pin)
+        params = [0x01, 0x14, 0x01]
+        self._send_command(self.PN532_COMMAND_SAMCONFIGURATION, params, timeout=0.5)
+
+    def rf_configuration(self):
+        """配置RF参数 (MaxRetries)"""
+        # ConfigItem: 0x05 (MaxRetries)
+        # MxRtyATR: 0xFF (default)
+        # MxRtyPSL: 0x01 (default)
+        # MxRtyPassiveActivation: 0x05 (尝试5次，增加寻卡成功率)
+        params = [0x05, 0xFF, 0x01, 0x05]
+        self._send_command(self.PN532_COMMAND_RFCONFIGURATION, params, timeout=0.5)
+
+    def read_passive_target(self, card_baud=0x00, timeout=1.0):
         """
         读取被动目标（寻卡）
         
