@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import '../models/card_info.dart';
@@ -54,6 +55,10 @@ class PN532Service extends ChangeNotifier {
         await disconnect();
       }
       
+      // 先执行 nfc-list 命令唤醒读卡器
+      // 这是解决插拔后读卡器无响应的关键步骤
+      await _wakeUpWithNfcList(debug: debug);
+      
       _driver = await PN532Driver.open(portName, baudRate: baudRate, debug: debug);
       _connectedPort = portName;
       _connectionStreamController.add(true);
@@ -67,6 +72,49 @@ class PN532Service extends ChangeNotifier {
     }
   }
 
+  /// 使用 nfc-list 命令唤醒读卡器
+  /// 在插拔后，读卡器可能需要通过 libnfc 工具来唤醒
+  Future<void> _wakeUpWithNfcList({bool debug = false}) async {
+    try {
+      if (debug) {
+        debugPrint('[PN532] 执行 nfc-list -v 唤醒读卡器...');
+      }
+      
+      // 执行 nfc-list 命令，-v 表示详细模式
+      // 这会初始化并扫描所有 NFC 设备
+      final result = await Process.run('nfc-list', ['-v'], 
+        runInShell: true,
+      ).timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          if (debug) {
+            debugPrint('[PN532] nfc-list 超时，继续尝试连接...');
+          }
+          return ProcessResult(0, -1, '', 'timeout');
+        },
+      );
+      
+      if (debug) {
+        debugPrint('[PN532] nfc-list 退出码: ${result.exitCode}');
+        if (result.stdout.toString().isNotEmpty) {
+          debugPrint('[PN532] nfc-list 输出: ${result.stdout}');
+        }
+        if (result.stderr.toString().isNotEmpty) {
+          debugPrint('[PN532] nfc-list 错误: ${result.stderr}');
+        }
+      }
+      
+      // 等待一小段时间让读卡器稳定
+      await Future.delayed(const Duration(milliseconds: 300));
+      
+    } catch (e) {
+      // nfc-list 可能未安装或执行失败，继续尝试连接
+      if (debug) {
+        debugPrint('[PN532] nfc-list 执行失败: $e，继续尝试连接...');
+      }
+    }
+  }
+
   /// 断开连接
   Future<void> disconnect() async {
     stopScanning();
@@ -76,6 +124,23 @@ class PN532Service extends ChangeNotifier {
     _lastCard = null;
     _connectionStreamController.add(false);
     notifyListeners();
+  }
+
+  /// 重新初始化读卡器
+  /// 在读卡失败或插拔后调用此方法可以重置读卡器状态
+  Future<bool> reinitialize() async {
+    if (_driver == null) return false;
+    
+    try {
+      final result = await _driver!.initializeDevice();
+      if (!result) {
+        debugPrint('PN532重新初始化失败');
+      }
+      return result;
+    } catch (e) {
+      debugPrint('PN532重新初始化错误: $e');
+      return false;
+    }
   }
 
   /// 开始持续扫描卡片

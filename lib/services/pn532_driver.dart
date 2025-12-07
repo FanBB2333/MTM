@@ -90,8 +90,13 @@ class PN532Driver {
         }
       });
       
-      // 唤醒设备
-      await driver._wakeUp();
+      // 完整初始化设备 - 模拟 nfc-list -v 的行为
+      // 这确保插拔后读卡器处于正确状态
+      final initialized = await driver.initializeDevice();
+      if (!initialized) {
+        driver.close();
+        throw Exception('设备初始化失败：无法与PN532通信');
+      }
       
       if (debug) {
         print('[PN532] 连接成功');
@@ -131,6 +136,90 @@ class PN532Driver {
     await Future.delayed(const Duration(milliseconds: 100));
     _readBuffer.clear();
     _log('唤醒序列已发送');
+  }
+
+  /// 初始化设备 - 模拟 nfc-list -v 的行为，确保读卡器处于正确状态
+  /// 在连接时调用此方法可以重置读卡器状态
+  Future<bool> initializeDevice() async {
+    _log('开始初始化设备...');
+    
+    // 1. 首先唤醒设备
+    await _wakeUp();
+    
+    // 2. 获取固件版本 - 验证通信正常
+    final fwVersion = await getFirmwareVersion();
+    if (fwVersion == null) {
+      _log('获取固件版本失败，尝试重新唤醒...');
+      // 再次尝试唤醒和获取固件版本
+      await _wakeUp();
+      await Future.delayed(const Duration(milliseconds: 200));
+      final fwVersionRetry = await getFirmwareVersion();
+      if (fwVersionRetry == null) {
+        _log('设备初始化失败：无法获取固件版本');
+        return false;
+      }
+    }
+    
+    // 3. SAM Configuration - 配置安全访问模块
+    final samConfigured = await samConfiguration();
+    if (!samConfigured) {
+      _log('SAM配置失败');
+      return false;
+    }
+    
+    _log('设备初始化完成');
+    return true;
+  }
+
+  /// 获取固件版本
+  Future<Map<String, int>?> getFirmwareVersion() async {
+    final response = await _sendCommand(cmdGetFirmwareVersion, timeoutMs: 500);
+    
+    if (response == null) return null;
+    
+    // 解析响应: D5 03 IC Ver Rev Support
+    for (int i = 0; i < response.length - 1; i++) {
+      if (response[i] == pn532ToHost && response[i + 1] == 0x03) {
+        if (i + 5 < response.length) {
+          final result = {
+            'ic': response[i + 2],
+            'ver': response[i + 3],
+            'rev': response[i + 4],
+            'support': response[i + 5],
+          };
+          _log('固件版本: IC=0x${result['ic']!.toRadixString(16)}, Ver=${result['ver']}.${result['rev']}');
+          return result;
+        }
+      }
+    }
+    
+    return null;
+  }
+
+  /// SAM Configuration - 配置安全访问模块
+  /// 这是 nfc-list 等工具初始化时必须执行的步骤
+  Future<bool> samConfiguration({int mode = 0x01, int timeout = 0x00, bool irq = false}) async {
+    // mode: 0x01 = Normal mode (SAM不参与)
+    // timeout: 0x00 = 无超时 (仅在virtual card模式下有效)
+    // irq: false = 不使用IRQ
+    final response = await _sendCommand(
+      cmdSamConfiguration, 
+      params: [mode, timeout, irq ? 0x01 : 0x00],
+      timeoutMs: 500,
+    );
+    
+    if (response == null) return false;
+    
+    // 检查 ACK 响应: D5 15
+    for (int i = 0; i < response.length - 1; i++) {
+      if (response[i] == pn532ToHost && response[i + 1] == 0x15) {
+        _log('SAM配置成功');
+        return true;
+      }
+    }
+    
+    _log('SAM配置失败：未收到正确响应');
+    return false;
   }
 
   /// 构建数据帧
