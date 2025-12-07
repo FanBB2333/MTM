@@ -34,7 +34,10 @@ class PN532Driver {
   final bool debug;
   bool _isOpen = false;
   StreamSubscription<FlSerialEventArgs>? _dataSubscription;
+  
+  // 数据接收相关
   final List<int> _readBuffer = [];
+  Completer<void>? _dataCompleter;
 
   PN532Driver._(this._serial, this._portName, {this.debug = false});
 
@@ -49,7 +52,7 @@ class PN532Driver {
         print('[PN532] 尝试打开端口: $portName @ $baudRate bps');
       }
       
-      // 打开端口 - openPort 可能抛出 FlSerialException
+      // 打开端口
       final status = serial.openPort(portName, baudRate);
       
       if (debug) {
@@ -70,14 +73,19 @@ class PN532Driver {
       final driver = PN532Driver._(serial, portName, debug: debug);
       driver._isOpen = true;
       
-      // 设置数据监听
+      // 设置数据回调监听 - 这是flserial接收数据的正确方式
       driver._dataSubscription = serial.onSerialData.stream.listen((args) {
         if (args.len > 0) {
           try {
             final data = args.serial.readList();
+            if (debug) {
+              print('[PN532] 回调收到 ${data.length} 字节: ${data.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}');
+            }
             driver._readBuffer.addAll(data);
+            // 通知等待的completer
+            driver._dataCompleter?.complete();
           } catch (e) {
-            if (debug) print('[PN532] 数据监听读取错误: $e');
+            if (debug) print('[PN532] 回调读取错误: $e');
           }
         }
       });
@@ -159,7 +167,7 @@ class PN532Driver {
     
     _log('TX: ${frame.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ')}');
     
-    // 清空缓冲区并发送
+    // 清空缓冲区
     _readBuffer.clear();
     
     try {
@@ -169,33 +177,43 @@ class PN532Driver {
       return null;
     }
     
-    // 等待响应
-    await Future.delayed(const Duration(milliseconds: 50));
-    return await _readResponse(timeoutMs: timeoutMs);
+    // 等待响应（使用回调机制）
+    return await _waitForResponse(timeoutMs: timeoutMs);
   }
 
-  /// 读取响应数据
-  Future<Uint8List?> _readResponse({int timeoutMs = 500}) async {
+  /// 等待响应数据（基于回调的等待机制）
+  Future<Uint8List?> _waitForResponse({int timeoutMs = 500}) async {
     final stopwatch = Stopwatch()..start();
     
+    _log('等待响应... (timeout: ${timeoutMs}ms)');
+    
+    // 等待数据到达
     while (stopwatch.elapsedMilliseconds < timeoutMs) {
-      // 尝试直接读取
-      try {
-        final data = _serial.readList();
-        if (data.isNotEmpty) {
-          _readBuffer.addAll(data);
-        }
-      } catch (e) {
-        // 忽略读取错误
-      }
-      
-      if (_readBuffer.length > 10) {
+      // 如果已有足够数据，返回
+      if (_readBuffer.length >= 10) {
         break;
       }
-      await Future.delayed(const Duration(milliseconds: 10));
+      
+      // 创建一个completer等待新数据
+      _dataCompleter = Completer<void>();
+      
+      try {
+        // 等待新数据或超时
+        await _dataCompleter!.future.timeout(
+          Duration(milliseconds: 50),
+          onTimeout: () {},
+        );
+      } catch (e) {
+        // 超时，继续循环
+      }
+      
+      _dataCompleter = null;
     }
     
+    _log('等待结束，共 ${_readBuffer.length} 字节，耗时 ${stopwatch.elapsedMilliseconds}ms');
+    
     if (_readBuffer.isEmpty) {
+      _log('未收到响应');
       return null;
     }
     
