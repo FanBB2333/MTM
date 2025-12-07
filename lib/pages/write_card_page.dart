@@ -18,55 +18,65 @@ class _WriteCardPageState extends State<WriteCardPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 标题
-          const Text(
-            'Write Card',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(32),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: constraints.maxHeight - 64, // 减去padding
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Write data to blank or UID cards',
-            style: TextStyle(
-              fontSize: 14,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          
-          const SizedBox(height: 32),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                // 标题
+                const Text(
+                  'Write Card',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Write data to blank or UID cards',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                
+                const SizedBox(height: 32),
 
-          // 数据源选择
-          _buildSourceSection(),
-          
-          const SizedBox(height: 24),
-          
-          // 高级选项
-          _buildOptionsSection(),
-          
-          const SizedBox(height: 32),
-          
-          // 写入按钮
-          _buildWriteButton(),
-          
-          const SizedBox(height: 24),
-          
-          // 进度显示
-          if (_isWriting) _buildProgress(),
-          
-          const Spacer(),
-          
-          // 警告信息
-          _buildWarning(),
-        ],
-      ),
+                // 数据源选择
+                _buildSourceSection(),
+                
+                const SizedBox(height: 24),
+                
+                // 高级选项
+                _buildOptionsSection(),
+                
+                const SizedBox(height: 32),
+                
+                // 写入按钮
+                _buildWriteButton(),
+                
+                const SizedBox(height: 24),
+                
+                // 进度显示
+                if (_isWriting) _buildProgress(),
+                
+                const SizedBox(height: 24),
+                
+                // 警告信息
+                _buildWarning(),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
