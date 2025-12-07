@@ -15,6 +15,7 @@ class PN532Service extends ChangeNotifier {
   PN532Driver? _driver;
   String? _connectedPort;
   bool _isScanning = false;
+  bool _isBusy = false;  // 防止重叠扫描
   CardInfo? _lastCard;
   Timer? _scanTimer;
 
@@ -79,7 +80,7 @@ class PN532Service extends ChangeNotifier {
   }
 
   /// 开始持续扫描卡片
-  void startScanning({Duration interval = const Duration(milliseconds: 200)}) {
+  void startScanning({Duration interval = const Duration(milliseconds: 500)}) {
     if (!isConnected || _isScanning) return;
     
     _isScanning = true;
@@ -100,10 +101,13 @@ class PN532Service extends ChangeNotifier {
 
   /// 单次扫描
   Future<CardInfo?> _scanOnce() async {
-    if (_driver == null) return null;
+    if (_driver == null || _isBusy) return null;
+    
+    _isBusy = true;
     
     try {
-      final result = await _driver!.readPassiveTarget();
+      // 使用较短的超时时间避免阻塞 UI
+      final result = await _driver!.readPassiveTarget(timeoutMs: 200);
       
       if (result != null) {
         final card = CardInfo(
@@ -132,6 +136,8 @@ class PN532Service extends ChangeNotifier {
     } catch (e) {
       debugPrint('扫描错误: $e');
       return null;
+    } finally {
+      _isBusy = false;
     }
   }
 

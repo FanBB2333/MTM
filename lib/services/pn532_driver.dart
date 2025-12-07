@@ -114,23 +114,73 @@ class PN532Driver {
     }
   }
 
-  /// 唤醒PN532
-  Future<void> _wakeUp() async {
-    // 发送唤醒序列: 16个0x55 + 4个0x00
-    final wakeup = Uint8List.fromList([
-      ...List.filled(16, 0x55),
-      ...List.filled(4, 0x00),
-    ]);
+  /// 唤醒PN532并初始化
+  Future<bool> _wakeUp() async {
+    _log('开始唤醒和初始化序列...');
     
-    try {
-      _serial.write(wakeup);
-    } catch (e) {
-      _log('唤醒写入错误: $e');
+    // 多次尝试唤醒（有些设备需要多次）
+    for (int attempt = 0; attempt < 3; attempt++) {
+      _log('唤醒尝试 ${attempt + 1}/3');
+      
+      // 清空接收缓冲区
+      _readBuffer.clear();
+      
+      // 发送唤醒序列: 多个 0x55 用于同步波特率，然后是 0x00 结束
+      // 这模拟了 nfc-list 的唤醒行为
+      final wakeup = Uint8List.fromList([
+        ...List.filled(20, 0x55),  // 增加到 20 个 0x55
+        ...List.filled(4, 0x00),
+      ]);
+      
+      try {
+        _serial.write(wakeup);
+      } catch (e) {
+        _log('唤醒写入错误: $e');
+      }
+      
+      await Future.delayed(const Duration(milliseconds: 50));
+      _readBuffer.clear();
+      
+      // 尝试发送 SAMConfiguration 命令来初始化设备
+      // SAMConfiguration: 命令 0x14, 模式 0x01 (Normal), 超时 0x14, IRQ 0x01
+      final samConfigured = await _configureSAM();
+      
+      if (samConfigured) {
+        _log('SAM 配置成功，设备已就绪');
+        return true;
+      }
+      
+      // 如果失败，等待更长时间后重试
+      await Future.delayed(const Duration(milliseconds: 100));
     }
     
-    await Future.delayed(const Duration(milliseconds: 100));
-    _readBuffer.clear();
-    _log('唤醒序列已发送');
+    _log('警告: SAM 配置失败，但继续尝试...');
+    return false;
+  }
+
+  /// 配置 SAM (Security Access Module)
+  /// 这是 PN532 初始化的关键步骤
+  Future<bool> _configureSAM() async {
+    // SAMConfiguration 命令参数:
+    // 0x01 = Normal mode (SAM 不参与 RF 通信)
+    // 0x14 = Timeout (20 * 50ms = 1s)
+    // 0x01 = Use IRQ pin
+    final response = await _sendCommand(
+      cmdSamConfiguration,
+      params: [0x01, 0x14, 0x01],
+      timeoutMs: 300,
+    );
+    
+    if (response != null) {
+      // 检查响应: 应该是 D5 15 (SAMConfiguration 响应)
+      for (int i = 0; i < response.length - 1; i++) {
+        if (response[i] == pn532ToHost && response[i + 1] == 0x15) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
   }
 
   /// 构建数据帧
