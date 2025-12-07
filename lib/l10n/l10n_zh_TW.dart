@@ -46,6 +46,13 @@ const Map<String, String> l10nZhTW = {
   'goToConnectPage': '前往連接頁面連接您的裝置',
   'authFailed': '區塊認證失敗',
   'notMifareClassic': '此卡片類型不支援 Mifare Classic 讀取操作。',
+
+  'keyList': '密鑰列表',
+  'keyListHint': '每行一個密鑰（12位十六進位）',
+  'loadKeysFromFile': '從檔案載入密鑰',
+  'copyData': '複製資料',
+  'copyAll': '複製全部',
+  'dataCopied': '資料已複製到剪貼簿',
   
   // Write Card Page
   'writeCardTitle': '寫入卡片',

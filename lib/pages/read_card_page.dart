@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import '../theme/app_colors.dart';
 import '../services/pn532_service.dart';
 import '../models/card_info.dart';
@@ -18,8 +19,8 @@ class _ReadCardPageState extends State<ReadCardPage> {
   final _pn532Service = PN532Service.instance;
   
   String _readMode = 'full';  // full, sector, block
-  final _keyAController = TextEditingController(text: 'FFFFFFFFFFFF');
-  final _keyBController = TextEditingController(text: 'FFFFFFFFFFFF');
+  // 默认密钥：全F
+  final _keyListController = TextEditingController(text: 'FFFFFFFFFFFF');
   final _sectorController = TextEditingController(text: '0');
   final _blockController = TextEditingController(text: '0');
   
@@ -31,26 +32,42 @@ class _ReadCardPageState extends State<ReadCardPage> {
 
   @override
   void dispose() {
-    _keyAController.dispose();
-    _keyBController.dispose();
+    _keyListController.dispose();
     _sectorController.dispose();
     _blockController.dispose();
     super.dispose();
   }
 
-  Uint8List? _parseKey(String hex) {
-    try {
-      hex = hex.replaceAll(RegExp(r'[^0-9A-Fa-f]'), '');
-      if (hex.length != 12) return null;
+  /// 解析密钥列表
+  List<Uint8List> _parseKeyList(String text) {
+    final keys = <Uint8List>[];
+    final lines = text.split('\n');
+    
+    for (var line in lines) {
+      line = line.trim();
+      if (line.isEmpty) continue;
       
-      final bytes = <int>[];
-      for (int i = 0; i < 12; i += 2) {
-        bytes.add(int.parse(hex.substring(i, i + 2), radix: 16));
+      try {
+        // 移除所有非十六进制字符
+        final hex = line.replaceAll(RegExp(r'[^0-9A-Fa-f]'), '');
+        if (hex.length != 12) continue; // 忽略非12位密钥
+        
+        final bytes = <int>[];
+        for (int i = 0; i < 12; i += 2) {
+          bytes.add(int.parse(hex.substring(i, i + 2), radix: 16));
+        }
+        keys.add(Uint8List.fromList(bytes));
+      } catch (e) {
+        // 忽略解析错误
       }
-      return Uint8List.fromList(bytes);
-    } catch (e) {
-      return null;
     }
+    
+    // 如果没有有效密钥，添加默认密钥
+    if (keys.isEmpty) {
+      keys.add(Uint8List.fromList([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]));
+    }
+    
+    return keys;
   }
 
   @override
@@ -235,44 +252,48 @@ class _ReadCardPageState extends State<ReadCardPage> {
   }
 
   Widget _buildKeySection(AppLocalizations l10n) {
-    return Row(
-      children: [
-        Expanded(
-          child: _buildKeyInput(l10n.keyA, _keyAController),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _buildKeyInput(l10n.keyB, _keyBController),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildKeyInput(String label, TextEditingController controller) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: AppColors.textSecondary,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              l10n.keyList,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            // TODO: Load from file feature
+            // TextButton.icon(
+            //   onPressed: () {},
+            //   icon: const Icon(CupertinoIcons.doc_text, size: 16),
+            //   label: Text(l10n.loadKeysFromFile),
+            // ),
+          ],
         ),
         const SizedBox(height: 8),
         TextField(
-          controller: controller,
+          controller: _keyListController,
+          maxLines: 4,
+          minLines: 2,
           style: const TextStyle(
             fontFamily: 'monospace',
             fontSize: 14,
           ),
           decoration: InputDecoration(
-            hintText: 'FFFFFFFFFFFF',
+            hintText: l10n.keyListHint,
             hintStyle: TextStyle(
               color: AppColors.textDisabled,
               fontFamily: 'monospace',
             ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: AppColors.divider),
+            ),
+            contentPadding: const EdgeInsets.all(12),
           ),
         ),
       ],
@@ -308,7 +329,7 @@ class _ReadCardPageState extends State<ReadCardPage> {
           Icon(CupertinoIcons.exclamationmark_circle, color: AppColors.error, size: 18),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(
+            child: SelectableText(
               _errorMessage!,
               style: TextStyle(color: AppColors.error, fontSize: 13),
             ),
@@ -341,22 +362,91 @@ class _ReadCardPageState extends State<ReadCardPage> {
       );
     }
 
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 卡片信息
-          if (_currentCard != null) ...[
-            _buildCardInfoSection(),
-            const SizedBox(height: 24),
-          ],
+    return Column(
+      children: [
+        // 数据操作栏
+        if (_sectorData != null || _blockData != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _copyAllData,
+                  icon: const Icon(CupertinoIcons.doc_on_clipboard, size: 16),
+                  label: Text(l10n.copyAll),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  ),
+                ),
+              ],
+            ),
+          ),
           
-          // 扇区数据
-          if (_sectorData != null) _buildSectorDataView(),
-          
-          // 单块数据
-          if (_blockData != null) _buildBlockDataView(),
-        ],
+        Expanded(
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 卡片信息
+                if (_currentCard != null) ...[
+                  _buildCardInfoSection(),
+                  const SizedBox(height: 24),
+                ],
+                
+                // 扇区数据
+                if (_sectorData != null) _buildSectorDataView(),
+                
+                // 单块数据
+                if (_blockData != null) _buildBlockDataView(),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _copyAllData() {
+    final buffer = StringBuffer();
+    final l10n = AppLocalizations.of(context);
+    
+    if (_currentCard != null) {
+      buffer.writeln('Card Info:');
+      buffer.writeln('UID: ${_currentCard!.uidHex}');
+      buffer.writeln('SAK: ${_currentCard!.sakHex}');
+      buffer.writeln('ATQA: ${_currentCard!.atqaHex}');
+      buffer.writeln('Type: ${_currentCard!.cardType}');
+      buffer.writeln('');
+    }
+    
+    if (_sectorData != null) {
+      _sectorData!.forEach((sector, blocks) {
+        buffer.writeln('Sector $sector:');
+        for (int i = 0; i < blocks.length; i++) {
+          final data = blocks[i];
+          final hex = data != null 
+              ? data.map((b) => b.toRadixString(16).padLeft(2, '0').toUpperCase()).join(' ') 
+              : '-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --';
+          buffer.writeln('  Block ${sector * 4 + i}: $hex');
+        }
+      });
+    }
+    
+    if (_blockData != null) {
+      final hex = _blockData!
+          .map((b) => b.toRadixString(16).padLeft(2, '0').toUpperCase())
+          .join(' ');
+      buffer.writeln('Block ${_blockController.text}: $hex');
+    }
+    
+    Clipboard.setData(ClipboardData(text: buffer.toString()));
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(l10n.dataCopied),
+        behavior: SnackBarBehavior.floating,
+        width: 300,
       ),
     );
   }
@@ -404,7 +494,7 @@ class _ReadCardPageState extends State<ReadCardPage> {
             ),
           ),
           Expanded(
-            child: Text(
+            child: SelectableText(
               value,
               style: const TextStyle(
                 fontSize: 13,
@@ -463,7 +553,7 @@ class _ReadCardPageState extends State<ReadCardPage> {
           const SizedBox(height: 8),
           ...List.generate(4, (i) {
             final data = blocks.length > i ? blocks[i] : null;
-            return _buildBlockRow(i, data, isTrailer: i == 3);
+            return _buildBlockRow(sector * 4 + i, data, isTrailer: i == 3);
           }),
         ],
       ),
@@ -491,7 +581,7 @@ class _ReadCardPageState extends State<ReadCardPage> {
             ),
           ),
           Expanded(
-            child: Text(
+            child: SelectableText(
               hexString,
               style: TextStyle(
                 fontSize: 11,
@@ -529,7 +619,7 @@ class _ReadCardPageState extends State<ReadCardPage> {
             ),
           ),
           const SizedBox(height: 12),
-          Text(
+          SelectableText(
             hexString,
             style: const TextStyle(
               fontSize: 13,
@@ -564,9 +654,8 @@ class _ReadCardPageState extends State<ReadCardPage> {
       
       setState(() => _currentCard = card);
       
-      // 解析密钥
-      final keyA = _parseKey(_keyAController.text);
-      final keyB = _parseKey(_keyBController.text);
+      // 解析密钥列表
+      final keys = _parseKeyList(_keyListController.text);
       
       if (!card.isMifareClassic) {
         setState(() {
@@ -581,8 +670,7 @@ class _ReadCardPageState extends State<ReadCardPage> {
           // 读取全部扇区
           final data = await _pn532Service.readMifareSectors(
             uid: card.uid,
-            keyA: keyA,
-            keyB: keyB,
+            keys: keys,
             sectors: card.sak == 0x18 ? 40 : 16,
           );
           setState(() => _sectorData = data);
@@ -593,8 +681,7 @@ class _ReadCardPageState extends State<ReadCardPage> {
           final sector = int.tryParse(_sectorController.text) ?? 0;
           final data = await _pn532Service.readMifareSectors(
             uid: card.uid,
-            keyA: keyA,
-            keyB: keyB,
+            keys: keys,
             sectors: sector + 1,
           );
           setState(() => _sectorData = {sector: data[sector] ?? []});
@@ -604,14 +691,27 @@ class _ReadCardPageState extends State<ReadCardPage> {
           // 读取单个块
           final block = int.tryParse(_blockController.text) ?? 0;
           final sector = block ~/ 4;
+          final firstBlock = sector * 4;
           
-          // 先认证
-          final authed = await _pn532Service.mifareAuth(
-            sector * 4,
-            card.uid,
-            key: keyA,
-            keyType: 'A',
-          );
+          bool authed = false;
+          // 尝试所有密钥
+          for (final key in keys) {
+            authed = await _pn532Service.mifareAuth(
+              firstBlock,
+              card.uid,
+              key: key,
+              keyType: 'A',
+            );
+            if (!authed) {
+              authed = await _pn532Service.mifareAuth(
+                firstBlock,
+                card.uid,
+                key: key,
+                keyType: 'B',
+              );
+            }
+            if (authed) break;
+          }
           
           if (!authed) {
             setState(() {

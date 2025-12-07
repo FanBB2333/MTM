@@ -46,6 +46,13 @@ const Map<String, String> l10nEn = {
   'goToConnectPage': 'Go to Connect page to connect your device',
   'authFailed': 'Authentication failed for block',
   'notMifareClassic': 'This card type does not support Mifare Classic read operations.',
+
+  'keyList': 'Key List',
+  'keyListHint': 'One key per line (12 hex chars)',
+  'loadKeysFromFile': 'Load Keys from File',
+  'copyData': 'Copy Data',
+  'copyAll': 'Copy All',
+  'dataCopied': 'Data copied to clipboard',
   
   // Write Card Page
   'writeCardTitle': 'Write Card',

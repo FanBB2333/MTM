@@ -84,6 +84,13 @@ class AppLocalizations {
   String get authFailed => get('authFailed');
   String get notMifareClassic => get('notMifareClassic');
   
+  String get keyList => get('keyList');
+  String get keyListHint => get('keyListHint');
+  String get loadKeysFromFile => get('loadKeysFromFile');
+  String get copyData => get('copyData');
+  String get copyAll => get('copyAll');
+  String get dataCopied => get('dataCopied');
+  
   // === Write Card Page ===
   String get writeCardTitle => get('writeCardTitle');
   String get writeCardSubtitle => get('writeCardSubtitle');

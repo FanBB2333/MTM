@@ -243,32 +243,57 @@ class PN532Service extends ChangeNotifier {
   /// 返回 Map<扇区号, List<块数据>>
   Future<Map<int, List<Uint8List?>>> readMifareSectors({
     required Uint8List uid,
-    Uint8List? keyA,
-    Uint8List? keyB,
+    required List<Uint8List> keys,
     int sectors = 16,  // Mifare 1K = 16扇区, 4K = 40扇区
   }) async {
     final result = <int, List<Uint8List?>>{};
     
+    // 默认密钥（如果列表为空）
+    if (keys.isEmpty) {
+      keys = [Uint8List.fromList([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF])];
+    }
+    
     for (int sector = 0; sector < sectors; sector++) {
       final blocks = <Uint8List?>[];
       final firstBlock = sector * 4;
+      bool sectorAuthed = false;
       
-      // 尝试用Key A认证
-      bool authed = await mifareAuth(firstBlock, uid, key: keyA, keyType: 'A');
-      
-      // 如果Key A失败，尝试Key B
-      if (!authed && keyB != null) {
-        authed = await mifareAuth(firstBlock, uid, key: keyB, keyType: 'B');
+      // 尝试列表中的所有密钥
+      for (final key in keys) {
+        // 尝试A密钥认证
+        bool authed = await mifareAuth(firstBlock, uid, key: key, keyType: 'A');
+        
+        // 如果A失败，尝试B密钥认证
+        if (!authed) {
+          authed = await mifareAuth(firstBlock, uid, key: key, keyType: 'B');
+        }
+        
+        if (authed) {
+          sectorAuthed = true;
+          // 认证成功，读取该扇区的4个块
+          for (int i = 0; i < 4; i++) {
+            // 注意：Mifare Classic 读取每个块之前最好都确保认证状态
+            // 但通常同一扇区内一次认证即可
+            // 如果读取失败，尝试重新认证
+            Uint8List? blockData = await mifareReadBlock(firstBlock + i);
+            
+            if (blockData == null) {
+              // 读取失败，尝试重新认证再读
+             final reAuthed = await mifareAuth(firstBlock, uid, key: key, keyType: 'A') || 
+                              await mifareAuth(firstBlock, uid, key: key, keyType: 'B');
+             if (reAuthed) {
+               blockData = await mifareReadBlock(firstBlock + i);
+             }
+            }
+            blocks.add(blockData);
+          }
+          // 只要找到一个能认证的密钥并读取完成，就跳出密钥循环，处理下一个扇区
+          break;
+        }
       }
       
-      if (authed) {
-        // 读取扇区的4个块
-        for (int i = 0; i < 4; i++) {
-          final blockData = await mifareReadBlock(firstBlock + i);
-          blocks.add(blockData);
-        }
-      } else {
-        // 认证失败，填充null
+      if (!sectorAuthed) {
+        // 所有密钥都无法认证该扇区
         blocks.addAll([null, null, null, null]);
       }
       
