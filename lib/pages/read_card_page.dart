@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
@@ -693,24 +692,26 @@ class _ReadCardPageState extends State<ReadCardPage> {
   }
 
   Widget _buildSectorDataView() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Sector Data',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textSecondary,
+    return SelectionArea(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Sector Data',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
+            ),
           ),
-        ),
-        const SizedBox(height: 12),
-        ...(_sectorData!.entries.map((entry) {
-          final sector = entry.key;
-          final blocks = entry.value;
-          return _buildSectorBlock(sector, blocks);
-        })),
-      ],
+          const SizedBox(height: 12),
+          ...(_sectorData!.entries.map((entry) {
+            final sector = entry.key;
+            final blocks = entry.value;
+            return _buildSectorBlock(sector, blocks);
+          })),
+        ],
+      ),
     );
   }
 
@@ -832,8 +833,8 @@ class _ReadCardPageState extends State<ReadCardPage> {
             ),
           ),
           Expanded(
-            child: RichText(
-              text: TextSpan(
+            child: Text.rich(
+              TextSpan(
                 children: spans,
                 style: const TextStyle(
                   fontSize: 11,
