@@ -97,6 +97,20 @@ class AppLocalizations {
   String get loadedFromFile => get('loadedFromFile');
   String get noDataToSave => get('noDataToSave');
   
+  // === Crack Card ===
+  String get crackWithMfoc => get('crackWithMfoc');
+  String get crackWithMfcuk => get('crackWithMfcuk');
+  String get terminalOutput => get('terminalOutput');
+  String get cracking => get('cracking');
+  String get crackSuccess => get('crackSuccess');
+  String get crackFailed => get('crackFailed');
+  String get clearTerminal => get('clearTerminal');
+  String get stopProcess => get('stopProcess');
+  String get toolNotFound => get('toolNotFound');
+  String get hideTerminal => get('hideTerminal');
+  String get showTerminal => get('showTerminal');
+  String get noCardForCrack => get('noCardForCrack');
+  
   // === Write Card Page ===
   String get writeCardTitle => get('writeCardTitle');
   String get writeCardSubtitle => get('writeCardSubtitle');

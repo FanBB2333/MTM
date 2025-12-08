@@ -60,6 +60,20 @@ const Map<String, String> l10nEn = {
   'loadedFromFile': 'Loaded from file',
   'noDataToSave': 'No data to save. Please read a card first.',
   
+  // Crack Card
+  'crackWithMfoc': 'Crack with mfoc',
+  'crackWithMfcuk': 'Crack with mfcuk',
+  'terminalOutput': 'Terminal Output',
+  'cracking': 'Cracking...',
+  'crackSuccess': 'Card cracked successfully!',
+  'crackFailed': 'Crack failed',
+  'clearTerminal': 'Clear',
+  'stopProcess': 'Stop',
+  'toolNotFound': 'Tool not found. Please install',
+  'hideTerminal': 'Hide Terminal',
+  'showTerminal': 'Show Terminal',
+  'noCardForCrack': 'Please read a card first before cracking',
+  
   // Write Card Page
   'writeCardTitle': 'Write Card',
   'writeCardSubtitle': 'Write data to blank or UID cards',

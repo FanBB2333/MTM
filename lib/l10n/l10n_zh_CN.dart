@@ -60,6 +60,20 @@ const Map<String, String> l10nZhCN = {
   'loadedFromFile': '已从文件加载',
   'noDataToSave': '没有可保存的数据，请先读取卡片。',
   
+  // Crack Card
+  'crackWithMfoc': '使用 mfoc 破解',
+  'crackWithMfcuk': '使用 mfcuk 破解',
+  'terminalOutput': '终端输出',
+  'cracking': '破解中...',
+  'crackSuccess': '卡片破解成功！',
+  'crackFailed': '破解失败',
+  'clearTerminal': '清空',
+  'stopProcess': '停止',
+  'toolNotFound': '工具未找到，请安装',
+  'hideTerminal': '隐藏终端',
+  'showTerminal': '显示终端',
+  'noCardForCrack': '请先读取卡片再进行破解',
+  
   // Write Card Page
   'writeCardTitle': '写入卡片',
   'writeCardSubtitle': '将数据写入空白卡或 UID 卡',

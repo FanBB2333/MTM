@@ -60,6 +60,20 @@ const Map<String, String> l10nZhTW = {
   'loadedFromFile': '已從檔案載入',
   'noDataToSave': '沒有可儲存的資料，請先讀取卡片。',
   
+  // Crack Card
+  'crackWithMfoc': '使用 mfoc 破解',
+  'crackWithMfcuk': '使用 mfcuk 破解',
+  'terminalOutput': '終端輸出',
+  'cracking': '破解中...',
+  'crackSuccess': '卡片破解成功！',
+  'crackFailed': '破解失敗',
+  'clearTerminal': '清空',
+  'stopProcess': '停止',
+  'toolNotFound': '工具未找到，請安裝',
+  'hideTerminal': '隱藏終端',
+  'showTerminal': '顯示終端',
+  'noCardForCrack': '請先讀取卡片再進行破解',
+  
   // Write Card Page
   'writeCardTitle': '寫入卡片',
   'writeCardSubtitle': '將資料寫入空白卡或 UID 卡',

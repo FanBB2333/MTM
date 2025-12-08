@@ -46,6 +46,9 @@ dependencies:
   
   # File picker for save/load dialogs
   file_picker: ^8.0.0
+  
+  # Path provider for temp directory access
+  path_provider: ^2.1.0
 
 
 dev_dependencies:

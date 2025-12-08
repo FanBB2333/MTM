@@ -1,13 +1,17 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 import '../theme/app_colors.dart';
 import '../services/pn532_service.dart';
 import '../services/card_file_service.dart';
+import '../services/crack_service.dart';
 import '../models/card_info.dart';
 import '../models/card_dump.dart';
 import '../l10n/app_localizations.dart';
+import '../widgets/terminal_output.dart';
 
 /// 读卡页面
 class ReadCardPage extends StatefulWidget {
@@ -19,6 +23,7 @@ class ReadCardPage extends StatefulWidget {
 
 class _ReadCardPageState extends State<ReadCardPage> {
   final _pn532Service = PN532Service.instance;
+  final _crackService = CrackService.instance;
   
   String _readMode = 'full';  // full, sector, block
   // 默认密钥：全F
@@ -31,12 +36,19 @@ class _ReadCardPageState extends State<ReadCardPage> {
   Map<int, List<Uint8List?>>? _sectorData;
   Uint8List? _blockData;
   String? _errorMessage;
+  
+  // Crack functionality
+  bool _showTerminal = false;
+  bool _isCracking = false;
+  final GlobalKey<TerminalOutputState> _terminalKey = GlobalKey<TerminalOutputState>();
+  StreamSubscription<String>? _outputSubscription;
 
   @override
   void dispose() {
     _keyListController.dispose();
     _sectorController.dispose();
     _blockController.dispose();
+    _outputSubscription?.cancel();
     super.dispose();
   }
 
@@ -77,66 +89,94 @@ class _ReadCardPageState extends State<ReadCardPage> {
     final isConnected = _pn532Service.isConnected;
     final l10n = AppLocalizations.of(context);
     
-    return Padding(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 标题
-          Text(
-            l10n.readCardTitle,
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            isConnected 
-                ? l10n.readCardSubtitle
-                : l10n.readCardNotConnected,
-            style: TextStyle(
-              fontSize: 14,
-              color: isConnected ? AppColors.textSecondary : AppColors.warning,
-            ),
-          ),
-          
-          const SizedBox(height: 32),
+    return Row(
+      children: [
+        // 左侧面板 - 读卡界面
+        Expanded(
+          flex: _showTerminal ? 1 : 1,
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 标题
+                Text(
+                  l10n.readCardTitle,
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  isConnected 
+                      ? l10n.readCardSubtitle
+                      : l10n.readCardNotConnected,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: isConnected ? AppColors.textSecondary : AppColors.warning,
+                  ),
+                ),
+                
+                const SizedBox(height: 32),
 
-          if (!isConnected)
-            _buildNotConnectedWarning(l10n)
-          else ...[
-            // 读取模式选择
-            _buildModeSection(l10n),
-            
-            const SizedBox(height: 24),
-            
-            // 密钥输入
-            _buildKeySection(l10n),
-            
-            const SizedBox(height: 32),
-            
-            // 读取按钮
-            _buildReadButton(l10n),
-            
-            // 错误信息
-            if (_errorMessage != null) ...[
-              const SizedBox(height: 16),
-              _buildErrorMessage(),
-            ],
-            
-            const SizedBox(height: 24),
-            
-            // 数据展示区
-            Expanded(
-              child: _buildDataView(l10n),
+                if (!isConnected)
+                  _buildNotConnectedWarning(l10n)
+                else ...[
+                  // 读取模式选择
+                  _buildModeSection(l10n),
+                  
+                  const SizedBox(height: 24),
+                  
+                  // 密钥输入
+                  _buildKeySection(l10n),
+                  
+                  const SizedBox(height: 32),
+                  
+                  // 读取按钮
+                  _buildReadButton(l10n),
+                  
+                  // 错误信息
+                  if (_errorMessage != null) ...[
+                    const SizedBox(height: 16),
+                    _buildErrorMessage(),
+                  ],
+                  
+                  const SizedBox(height: 24),
+                  
+                  // 数据展示区
+                  Expanded(
+                    child: _buildDataView(l10n),
+                  ),
+                ],
+              ],
             ),
-          ],
+          ),
+        ),
+        
+        // 右侧面板 - 终端输出
+        if (_showTerminal) ...[
+          Container(width: 1, color: AppColors.divider),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: TerminalOutput(
+                key: _terminalKey,
+                title: l10n.terminalOutput,
+                outputStream: _crackService.outputStream,
+                isRunning: _isCracking,
+                onClose: () => setState(() => _showTerminal = false),
+                onClear: () => _terminalKey.currentState?.clear(),
+                onStop: _isCracking ? _stopCracking : null,
+              ),
+            ),
+          ),
         ],
-      ),
+      ],
     );
   }
+
 
   Widget _buildNotConnectedWarning(AppLocalizations l10n) {
     return Expanded(
@@ -371,8 +411,37 @@ class _ReadCardPageState extends State<ReadCardPage> {
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
               children: [
+                // 破解按钮
+                if (_currentCard != null) ...[
+                  ElevatedButton.icon(
+                    onPressed: _isCracking ? null : _crackWithMfoc,
+                    icon: _isCracking 
+                        ? const CupertinoActivityIndicator(radius: 8)
+                        : const Icon(CupertinoIcons.lock_open, size: 16),
+                    label: Text(l10n.crackWithMfoc),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: AppColors.textPrimary,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: _isCracking ? null : _crackWithMfcuk,
+                    icon: _isCracking 
+                        ? const CupertinoActivityIndicator(radius: 8)
+                        : const Icon(CupertinoIcons.lock_shield, size: 16),
+                    label: Text(l10n.crackWithMfcuk),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.warning,
+                      foregroundColor: AppColors.textPrimary,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                const Spacer(),
                 ElevatedButton.icon(
                   onPressed: _saveToFile,
                   icon: const Icon(CupertinoIcons.square_arrow_down, size: 16),
@@ -804,4 +873,126 @@ class _ReadCardPageState extends State<ReadCardPage> {
       setState(() => _isReading = false);
     }
   }
+
+  /// 使用 mfoc 破解卡片
+  Future<void> _crackWithMfoc() async {
+    if (_currentCard == null) {
+      final l10n = AppLocalizations.of(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.noCardForCrack),
+          behavior: SnackBarBehavior.floating,
+          width: 300,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _showTerminal = true;
+      _isCracking = true;
+    });
+
+    // 设置输出监听
+    _outputSubscription?.cancel();
+    _outputSubscription = _crackService.outputStream.listen((line) {
+      _terminalKey.currentState?.addLine(line);
+    });
+
+    try {
+      // 生成输出文件路径
+      final tempDir = await getTemporaryDirectory();
+      final uid = _currentCard!.uidHex.replaceAll(':', '');
+      final outputPath = '${tempDir.path}/card_$uid.mfd';
+
+      // 获取已知密钥（从输入框）
+      final keys = _parseKeyList(_keyListController.text);
+      final knownKeys = keys.map((k) => k.map((b) => b.toRadixString(16).padLeft(2, '0')).join()).toList();
+
+      final success = await _crackService.runMfoc(
+        outputPath: outputPath,
+        knownKeys: knownKeys,
+      );
+
+      if (success && mounted) {
+        final l10n = AppLocalizations.of(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.crackSuccess),
+            behavior: SnackBarBehavior.floating,
+            width: 300,
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      _terminalKey.currentState?.addLine('> Error: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isCracking = false);
+      }
+    }
+  }
+
+  /// 使用 mfcuk 破解卡片
+  Future<void> _crackWithMfcuk() async {
+    if (_currentCard == null) {
+      final l10n = AppLocalizations.of(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.noCardForCrack),
+          behavior: SnackBarBehavior.floating,
+          width: 300,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _showTerminal = true;
+      _isCracking = true;
+    });
+
+    // 设置输出监听
+    _outputSubscription?.cancel();
+    _outputSubscription = _crackService.outputStream.listen((line) {
+      _terminalKey.currentState?.addLine(line);
+    });
+
+    try {
+      // 生成输出文件路径
+      final tempDir = await getTemporaryDirectory();
+      final uid = _currentCard!.uidHex.replaceAll(':', '');
+      final outputPath = '${tempDir.path}/card_$uid.mfd';
+
+      final success = await _crackService.runMfcuk(
+        outputPath: outputPath,
+      );
+
+      if (success && mounted) {
+        final l10n = AppLocalizations.of(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.crackSuccess),
+            behavior: SnackBarBehavior.floating,
+            width: 300,
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      _terminalKey.currentState?.addLine('> Error: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isCracking = false);
+      }
+    }
+  }
+
+  /// 停止破解进程
+  void _stopCracking() {
+    _crackService.stopProcess();
+    setState(() => _isCracking = false);
+  }
 }
+
