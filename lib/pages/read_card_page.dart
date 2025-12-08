@@ -1050,11 +1050,8 @@ class _ReadCardPageState extends State<ReadCardPage> {
       }
     });
 
-    // 保存端口并断开连接，释放设备给 mfoc 使用
-    final port = _pn532Service.connectedPort;
-    if (port != null) {
-      await _pn532Service.disconnect();
-    }
+    // 端口检测逻辑移至 CrackService 内部自动处理
+
 
     try {
       // 生成输出文件路径
@@ -1088,7 +1085,9 @@ class _ReadCardPageState extends State<ReadCardPage> {
       _terminalKey.currentState?.addLine('> Error: $e');
     } finally {
       // 重新连接设备
-      if (port != null && !_pn532Service.isConnected) {
+      // 重新连接设备（如果 CrackService 没有自动恢复连接）
+      if (!_pn532Service.isConnected && _pn532Service.connectedPort != null) {
+        final port = _pn532Service.connectedPort!;
         _terminalKey.currentState?.addLine('> Reconnecting to $port...');
         await _pn532Service.connect(port);
         await _pn532Service.reinitialize(); // 确保设备复位
@@ -1163,11 +1162,8 @@ class _ReadCardPageState extends State<ReadCardPage> {
       }
     });
 
-    // 保存端口并断开连接，释放设备给 mfcuk 使用
-    final port = _pn532Service.connectedPort;
-    if (port != null) {
-      await _pn532Service.disconnect();
-    }
+    // 端口检测逻辑移至 CrackService 内部自动处理
+
 
     try {
       // 生成输出文件路径
@@ -1196,7 +1192,9 @@ class _ReadCardPageState extends State<ReadCardPage> {
       _terminalKey.currentState?.addLine('> Error: $e');
     } finally {
       // 重新连接设备
-      if (port != null && !_pn532Service.isConnected) {
+      // 重新连接设备（如果 CrackService 没有自动恢复连接）
+      if (!_pn532Service.isConnected && _pn532Service.connectedPort != null) {
+        final port = _pn532Service.connectedPort!;
         _terminalKey.currentState?.addLine('> Reconnecting to $port...');
         await _pn532Service.connect(port);
         await _pn532Service.reinitialize(); // 确保设备复位
