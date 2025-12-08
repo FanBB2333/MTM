@@ -86,7 +86,7 @@ class _ReadCardPageState extends State<ReadCardPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isConnected = _pn532Service.isConnected;
+    final isConnected = _pn532Service.isConnected || _isCracking;
     final l10n = AppLocalizations.of(context);
     
     return Row(
@@ -901,6 +901,12 @@ class _ReadCardPageState extends State<ReadCardPage> {
       _terminalKey.currentState?.addLine(line);
     });
 
+    // 保存端口并断开连接，释放设备给 mfoc 使用
+    final port = _pn532Service.connectedPort;
+    if (port != null) {
+      await _pn532Service.disconnect();
+    }
+
     try {
       // 生成输出文件路径
       final tempDir = await getTemporaryDirectory();
@@ -930,6 +936,11 @@ class _ReadCardPageState extends State<ReadCardPage> {
     } catch (e) {
       _terminalKey.currentState?.addLine('> Error: $e');
     } finally {
+      // 重新连接设备
+      if (port != null && !_pn532Service.isConnected) {
+        await _pn532Service.connect(port);
+      }
+      
       if (mounted) {
         setState(() => _isCracking = false);
       }
@@ -961,6 +972,12 @@ class _ReadCardPageState extends State<ReadCardPage> {
       _terminalKey.currentState?.addLine(line);
     });
 
+    // 保存端口并断开连接，释放设备给 mfcuk 使用
+    final port = _pn532Service.connectedPort;
+    if (port != null) {
+      await _pn532Service.disconnect();
+    }
+
     try {
       // 生成输出文件路径
       final tempDir = await getTemporaryDirectory();
@@ -985,6 +1002,11 @@ class _ReadCardPageState extends State<ReadCardPage> {
     } catch (e) {
       _terminalKey.currentState?.addLine('> Error: $e');
     } finally {
+      // 重新连接设备
+      if (port != null && !_pn532Service.isConnected) {
+        await _pn532Service.connect(port);
+      }
+
       if (mounted) {
         setState(() => _isCracking = false);
       }
