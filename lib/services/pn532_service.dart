@@ -307,6 +307,7 @@ class PN532Service extends ChangeNotifier {
       
       // 尝试A密钥认证
       bool authed = await mifareAuth(firstBlock, uid, key: key, keyType: 'A');
+      bool usedKeyA = authed;
       
       // 如果A失败，需要重新寻卡再尝试B密钥
       if (!authed) {
@@ -329,6 +330,23 @@ class PN532Service extends ChangeNotifier {
               blockData = await mifareReadBlock(firstBlock + i);
             }
           }
+          
+          // 对于扇区尾块（块3），填入真实密钥
+          // Mifare Classic 因为安全原因，Key A 位置总是返回 00 00 00 00 00 00
+          // 我们用实际认证成功的密钥替换它
+          if (i == 3 && blockData != null && blockData.length == 16) {
+            final patchedBlock = Uint8List.fromList(blockData);
+            if (usedKeyA) {
+              // 如果用 Key A 认证成功，填入 Key A 位置
+              for (int j = 0; j < 6; j++) {
+                patchedBlock[j] = key[j];
+              }
+            }
+            // 注意：如果用 Key B 认证，Key A 仍然是未知的，保持原样
+            // Key B 位置在字节 10-15，但通常已经可读
+            blockData = patchedBlock;
+          }
+          
           blocks.add(blockData);
         }
         return blocks;  // 成功读取，返回
