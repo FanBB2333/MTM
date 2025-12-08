@@ -98,64 +98,70 @@ class _ReadCardPageState extends State<ReadCardPage> {
         // 左侧面板 - 读卡界面
         Expanded(
           flex: _showTerminal ? 3 : 1,
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 标题
-                Text(
-                  l10n.readCardTitle,
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  isConnected 
-                      ? l10n.readCardSubtitle
-                      : l10n.readCardNotConnected,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: isConnected ? AppColors.textSecondary : AppColors.warning,
-                  ),
-                ),
-                
-                const SizedBox(height: 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 标题
+                    Text(
+                      l10n.readCardTitle,
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      isConnected 
+                          ? l10n.readCardSubtitle
+                          : l10n.readCardNotConnected,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: isConnected ? AppColors.textSecondary : AppColors.warning,
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 32),
 
-                if (!isConnected)
-                  _buildNotConnectedWarning(l10n)
-                else ...[
-                  // 读取模式选择
-                  _buildModeSection(l10n),
-                  
-                  const SizedBox(height: 24),
-                  
-                  // 密钥输入
-                  _buildKeySection(l10n),
-                  
-                  const SizedBox(height: 32),
-                  
-                  // 读取按钮
-                  _buildReadButton(l10n),
-                  
-                  // 错误信息
-                  if (_errorMessage != null) ...[
-                    const SizedBox(height: 16),
-                    _buildErrorMessage(),
+                    if (!isConnected)
+                      _buildNotConnectedWarning(l10n)
+                    else ...[
+                      // 读取模式选择
+                      _buildModeSection(l10n),
+                      
+                      const SizedBox(height: 24),
+                      
+                      // 密钥输入
+                      _buildKeySection(l10n),
+                      
+                      const SizedBox(height: 32),
+                      
+                      // 读取按钮
+                      _buildReadButton(l10n),
+                      
+                      // 错误信息
+                      if (_errorMessage != null) ...[
+                        const SizedBox(height: 16),
+                        _buildErrorMessage(),
+                      ],
+                    ],
                   ],
-                  
-                  const SizedBox(height: 24),
-                  
-                  // 数据展示区
-                  Expanded(
-                    child: _buildDataView(l10n),
-                  ),
-                ],
-              ],
-            ),
+                ),
+              ),
+              
+              const SizedBox(height: 24),
+              
+              // 数据展示区
+              if (isConnected)
+                Expanded(
+                  child: _buildDataView(l10n),
+                ),
+            ],
           ),
         ),
         
@@ -442,13 +448,15 @@ class _ReadCardPageState extends State<ReadCardPage> {
         // 数据操作栏
         if (_sectorData != null || _blockData != null)
           Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              alignment: WrapAlignment.end,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.end,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
                 // 破解按钮
                 if (_currentCard != null) ...[
                   ElevatedButton.icon(
@@ -501,9 +509,11 @@ class _ReadCardPageState extends State<ReadCardPage> {
               ],
             ),
           ),
+        ),
           
         Expanded(
           child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -735,10 +745,77 @@ class _ReadCardPageState extends State<ReadCardPage> {
   }
 
   Widget _buildBlockRow(int blockNum, Uint8List? data, {bool isTrailer = false}) {
-    final hexString = data != null
-        ? data.map((b) => b.toRadixString(16).padLeft(2, '0').toUpperCase()).join(' ')
-        : '-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --';
+    if (data == null) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 40,
+              child: Text(
+                'B$blockNum',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontFamily: 'monospace',
+                  color: isTrailer ? AppColors.warning : AppColors.textSecondary,
+                ),
+              ),
+            ),
+            Expanded(
+              child: Text(
+                '-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontFamily: 'monospace',
+                  color: AppColors.textDisabled,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final spans = <InlineSpan>[];
     
+    for (int i = 0; i < 16; i++) {
+      if (i >= data.length) break;
+      
+      final byte = data[i];
+      final hex = byte.toRadixString(16).padLeft(2, '0').toUpperCase();
+      
+      Color color = AppColors.textPrimary;
+      FontWeight fontWeight = FontWeight.normal;
+      
+      if (blockNum == 0) {
+        // 厂商块 (Sector 0, Block 0): 紫色显示 UID 等信息
+        color = Colors.purple; 
+        fontWeight = FontWeight.w500;
+      } else if (isTrailer) {
+        // 尾块: Key A (0-5), Access Bits (6-9), Key B (10-15)
+        if (i < 6) {
+          color = Colors.green; // Key A
+        } else if (i < 10) {
+          color = Colors.deepOrange; // Access Bits
+        } else {
+          color = Colors.green; // Key B
+        }
+        fontWeight = FontWeight.w500;
+      }
+      
+      spans.add(TextSpan(
+        text: hex,
+        style: TextStyle(
+          color: color,
+          fontWeight: fontWeight,
+        ),
+      ));
+      
+      if (i < 15) {
+        spans.add(const TextSpan(text: ' '));
+      }
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
@@ -755,12 +832,13 @@ class _ReadCardPageState extends State<ReadCardPage> {
             ),
           ),
           Expanded(
-            child: SelectableText(
-              hexString,
-              style: TextStyle(
-                fontSize: 11,
-                fontFamily: 'monospace',
-                color: data != null ? AppColors.textPrimary : AppColors.textDisabled,
+            child: RichText(
+              text: TextSpan(
+                children: spans,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontFamily: 'monospace',
+                ),
               ),
             ),
           ),
