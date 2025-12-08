@@ -93,7 +93,7 @@ class _ReadCardPageState extends State<ReadCardPage> {
       children: [
         // 左侧面板 - 读卡界面
         Expanded(
-          flex: _showTerminal ? 1 : 1,
+          flex: _showTerminal ? 3 : 1,
           child: Padding(
             padding: const EdgeInsets.all(32),
             child: Column(
@@ -159,6 +159,7 @@ class _ReadCardPageState extends State<ReadCardPage> {
         if (_showTerminal) ...[
           Container(width: 1, color: AppColors.divider),
           Expanded(
+            flex: 2,
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: TerminalOutput(
@@ -225,12 +226,13 @@ class _ReadCardPageState extends State<ReadCardPage> {
           ),
         ),
         const SizedBox(height: 12),
-        Row(
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
           children: [
             _buildModeChip(l10n.fullCard, 'full'),
-            const SizedBox(width: 12),
             _buildModeChip(l10n.sector, 'sector'),
-            const SizedBox(width: 12),
             _buildModeChip(l10n.block, 'block'),
           ],
         ),
@@ -410,7 +412,11 @@ class _ReadCardPageState extends State<ReadCardPage> {
         if (_sectorData != null || _blockData != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
-            child: Row(
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.end,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 // 破解按钮
                 if (_currentCard != null) ...[
@@ -426,7 +432,6 @@ class _ReadCardPageState extends State<ReadCardPage> {
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     ),
                   ),
-                  const SizedBox(width: 8),
                   ElevatedButton.icon(
                     onPressed: _isCracking ? null : _crackWithMfcuk,
                     icon: _isCracking 
@@ -439,9 +444,7 @@ class _ReadCardPageState extends State<ReadCardPage> {
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     ),
                   ),
-                  const SizedBox(width: 8),
                 ],
-                const Spacer(),
                 ElevatedButton.icon(
                   onPressed: _saveToFile,
                   icon: const Icon(CupertinoIcons.square_arrow_down, size: 16),
@@ -453,7 +456,6 @@ class _ReadCardPageState extends State<ReadCardPage> {
                     side: BorderSide(color: AppColors.primary),
                   ),
                 ),
-                const SizedBox(width: 12),
                 ElevatedButton.icon(
                   onPressed: _copyAllData,
                   icon: const Icon(CupertinoIcons.doc_on_clipboard, size: 16),
