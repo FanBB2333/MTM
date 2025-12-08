@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'pn532_service.dart';
+
 /// 卡片破解服务
 /// 封装 mfoc 和 mfcuk 命令行工具调用
 class CrackService {
@@ -41,7 +43,6 @@ class CrackService {
       return false;
     }
 
-    // 检查 mfoc 是否可用
     if (!await isToolAvailable('mfoc')) {
       _outputController.add('> Error: mfoc not found');
       _outputController.add('> Please install mfoc:');
@@ -51,6 +52,20 @@ class CrackService {
     }
 
     _isRunning = true;
+    
+    // 检查并释放连接
+    String? originalPort;
+    bool wasConnected = false;
+    final pn532Service = PN532Service.instance;
+    
+    if (pn532Service.isConnected) {
+      wasConnected = true;
+      originalPort = pn532Service.connectedPort;
+      _outputController.add('> Releasing NFC reader for mfoc...');
+      await pn532Service.disconnect();
+      // 等待一点时间让设备释放
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
     
     try {
       final args = <String>[
@@ -111,6 +126,14 @@ class CrackService {
     } finally {
       _isRunning = false;
       _currentProcess = null;
+      
+      // 恢复连接
+      if (wasConnected && originalPort != null) {
+        _outputController.add('');
+        _outputController.add('> Restoring connection to NFC reader...');
+        await pn532Service.connect(originalPort);
+        _outputController.add('> Device reconnected.');
+      }
     }
   }
 
@@ -127,7 +150,6 @@ class CrackService {
       return false;
     }
 
-    // 检查 mfcuk 是否可用
     if (!await isToolAvailable('mfcuk')) {
       _outputController.add('> Error: mfcuk not found');
       _outputController.add('> Please install mfcuk:');
@@ -137,6 +159,20 @@ class CrackService {
     }
 
     _isRunning = true;
+    
+    // 检查并释放连接
+    String? originalPort;
+    bool wasConnected = false;
+    final pn532Service = PN532Service.instance;
+    
+    if (pn532Service.isConnected) {
+      wasConnected = true;
+      originalPort = pn532Service.connectedPort;
+      _outputController.add('> Releasing NFC reader for mfcuk...');
+      await pn532Service.disconnect();
+      // 等待一点时间让设备释放
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
     
     try {
       final args = <String>[
@@ -197,6 +233,14 @@ class CrackService {
     } finally {
       _isRunning = false;
       _currentProcess = null;
+      
+      // 恢复连接
+      if (wasConnected && originalPort != null) {
+        _outputController.add('');
+        _outputController.add('> Restoring connection to NFC reader...');
+        await pn532Service.connect(originalPort);
+        _outputController.add('> Device reconnected.');
+      }
     }
   }
 

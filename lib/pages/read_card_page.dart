@@ -955,7 +955,10 @@ class _ReadCardPageState extends State<ReadCardPage> {
     } finally {
       // 重新连接设备
       if (port != null && !_pn532Service.isConnected) {
+        _terminalKey.currentState?.addLine('> Reconnecting to $port...');
         await _pn532Service.connect(port);
+        await _pn532Service.reinitialize(); // 确保设备复位
+        _terminalKey.currentState?.addLine('> Device reconnected.');
       }
       
       if (mounted) {
@@ -1060,7 +1063,10 @@ class _ReadCardPageState extends State<ReadCardPage> {
     } finally {
       // 重新连接设备
       if (port != null && !_pn532Service.isConnected) {
+        _terminalKey.currentState?.addLine('> Reconnecting to $port...');
         await _pn532Service.connect(port);
+        await _pn532Service.reinitialize(); // 确保设备复位
+        _terminalKey.currentState?.addLine('> Device reconnected.');
       }
 
       if (mounted) {
