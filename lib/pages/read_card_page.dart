@@ -165,7 +165,6 @@ class _ReadCardPageState extends State<ReadCardPage> {
               child: TerminalOutput(
                 key: _terminalKey,
                 title: l10n.terminalOutput,
-                outputStream: _crackService.outputStream,
                 isRunning: _isCracking,
                 onClose: () => setState(() => _showTerminal = false),
                 onClear: () => _terminalKey.currentState?.clear(),
@@ -895,10 +894,26 @@ class _ReadCardPageState extends State<ReadCardPage> {
       _isCracking = true;
     });
 
+    final foundKeys = <String>{};
+    String? lastLine;
+    bool success = false;
+
     // 设置输出监听
     _outputSubscription?.cancel();
     _outputSubscription = _crackService.outputStream.listen((line) {
+      // 1. 去重
+      if (line == lastLine) return;
+      lastLine = line;
+      
       _terminalKey.currentState?.addLine(line);
+
+      // 2. 解析密钥
+      // 匹配格式: "key ffffffffffff", "Key: ffffffffffff", "recovered: ffffffffffff"
+      final regex = RegExp(r'(?:key|Key|recovered).*?([0-9a-fA-F]{12})', caseSensitive: false);
+      final match = regex.firstMatch(line);
+      if (match != null) {
+        foundKeys.add(match.group(1)!.toUpperCase());
+      }
     });
 
     // 保存端口并断开连接，释放设备给 mfoc 使用
@@ -916,8 +931,10 @@ class _ReadCardPageState extends State<ReadCardPage> {
       // 获取已知密钥（从输入框）
       final keys = _parseKeyList(_keyListController.text);
       final knownKeys = keys.map((k) => k.map((b) => b.toRadixString(16).padLeft(2, '0')).join()).toList();
+      // 将已知密钥也加入集合，避免重复添加
+      foundKeys.addAll(knownKeys.map((k) => k.toUpperCase()));
 
-      final success = await _crackService.runMfoc(
+      success = await _crackService.runMfoc(
         outputPath: outputPath,
         knownKeys: knownKeys,
       );
@@ -943,6 +960,27 @@ class _ReadCardPageState extends State<ReadCardPage> {
       
       if (mounted) {
         setState(() => _isCracking = false);
+        
+        // 更新密钥列表并自动重读
+        if (success && foundKeys.isNotEmpty) {
+          final sortedKeys = foundKeys.toList()..sort();
+          _keyListController.text = sortedKeys.join('\n');
+          
+          // 显示找到的密钥
+          _terminalKey.currentState?.addLine('');
+          _terminalKey.currentState?.addLine('> Found ${sortedKeys.length} unique keys:');
+          for (final key in sortedKeys) {
+            _terminalKey.currentState?.addLine('  $key');
+          }
+          _terminalKey.currentState?.addLine('');
+          _terminalKey.currentState?.addLine('> Auto-reading card with new keys...');
+          
+          // 稍微延迟一下等待连接稳定
+          await Future.delayed(const Duration(milliseconds: 1000));
+          if (mounted) {
+            _startReading();
+          }
+        }
       }
     }
   }
@@ -966,10 +1004,26 @@ class _ReadCardPageState extends State<ReadCardPage> {
       _isCracking = true;
     });
 
+    final foundKeys = <String>{};
+    String? lastLine;
+    bool success = false;
+
     // 设置输出监听
     _outputSubscription?.cancel();
     _outputSubscription = _crackService.outputStream.listen((line) {
+      // 1. 去重
+      if (line == lastLine) return;
+      lastLine = line;
+
       _terminalKey.currentState?.addLine(line);
+
+      // 2. 解析密钥
+      // 匹配格式: "key ffffffffffff", "Key: ffffffffffff", "recovered: ffffffffffff"
+      final regex = RegExp(r'(?:key|Key|recovered).*?([0-9a-fA-F]{12})', caseSensitive: false);
+      final match = regex.firstMatch(line);
+      if (match != null) {
+        foundKeys.add(match.group(1)!.toUpperCase());
+      }
     });
 
     // 保存端口并断开连接，释放设备给 mfcuk 使用
@@ -984,7 +1038,9 @@ class _ReadCardPageState extends State<ReadCardPage> {
       final uid = _currentCard!.uidHex.replaceAll(':', '');
       final outputPath = '${tempDir.path}/card_$uid.mfd';
 
-      final success = await _crackService.runMfcuk(
+      // mfcuk 不需要已知密钥，但也尝试从当前列表获取作为参考? mfcuk 主要是找第一个密钥
+      
+      success = await _crackService.runMfcuk(
         outputPath: outputPath,
       );
 
@@ -1009,6 +1065,33 @@ class _ReadCardPageState extends State<ReadCardPage> {
 
       if (mounted) {
         setState(() => _isCracking = false);
+        
+        // 更新密钥列表并自动重读
+        if (success && foundKeys.isNotEmpty) {
+          // 获取现有密钥
+          final existingKeys = _parseKeyList(_keyListController.text)
+              .map((k) => k.map((b) => b.toRadixString(16).padLeft(2, '0')).join().toUpperCase())
+              .toSet();
+          
+          foundKeys.addAll(existingKeys);
+          final sortedKeys = foundKeys.toList()..sort();
+          _keyListController.text = sortedKeys.join('\n');
+          
+          // 显示找到的密钥
+          _terminalKey.currentState?.addLine('');
+          _terminalKey.currentState?.addLine('> Found ${sortedKeys.length} unique keys:');
+          for (final key in sortedKeys) {
+            _terminalKey.currentState?.addLine('  $key');
+          }
+          _terminalKey.currentState?.addLine('');
+          _terminalKey.currentState?.addLine('> Auto-reading card with new keys...');
+          
+          // 稍微延迟一下等待连接稳定
+          await Future.delayed(const Duration(milliseconds: 1000));
+          if (mounted) {
+            _startReading();
+          }
+        }
       }
     }
   }
