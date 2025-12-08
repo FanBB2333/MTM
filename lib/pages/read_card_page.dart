@@ -37,6 +37,10 @@ class _ReadCardPageState extends State<ReadCardPage> {
   Uint8List? _blockData;
   String? _errorMessage;
   
+  // Progress tracking
+  int _readingProgress = 0;
+  int _readingTotal = 16;
+  
   // Crack functionality
   bool _showTerminal = false;
   bool _isCracking = false;
@@ -344,18 +348,46 @@ class _ReadCardPageState extends State<ReadCardPage> {
   }
 
   Widget _buildReadButton(AppLocalizations l10n) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        onPressed: _isReading ? null : _startReading,
-        icon: _isReading
-            ? const CupertinoActivityIndicator(radius: 10)
-            : const Icon(CupertinoIcons.creditcard),
-        label: Text(_isReading ? l10n.reading : l10n.startReading),
-        style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 16),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: _isReading ? null : _startReading,
+            icon: _isReading
+                ? const CupertinoActivityIndicator(radius: 10)
+                : const Icon(CupertinoIcons.creditcard),
+            label: Text(_isReading 
+                ? '${l10n.reading} ($_readingProgress/$_readingTotal)' 
+                : l10n.startReading),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+            ),
+          ),
         ),
-      ),
+        if (_isReading) ...[
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: _readingTotal > 0 ? _readingProgress / _readingTotal : 0,
+              backgroundColor: AppColors.divider,
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+              minHeight: 6,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Sector $_readingProgress / $_readingTotal',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -810,10 +842,22 @@ class _ReadCardPageState extends State<ReadCardPage> {
       switch (_readMode) {
         case 'full':
           // 读取全部扇区
+          final totalSectors = card.sak == 0x18 ? 40 : 16;
+          setState(() {
+            _readingProgress = 0;
+            _readingTotal = totalSectors;
+          });
+          
           final data = await _pn532Service.readMifareSectors(
             uid: card.uid,
             keys: keys,
-            sectors: card.sak == 0x18 ? 40 : 16,
+            sectors: totalSectors,
+            onProgress: (current, total) {
+              setState(() {
+                _readingProgress = current;
+                _readingTotal = total;
+              });
+            },
           );
           setState(() => _sectorData = data);
           break;
@@ -821,10 +865,21 @@ class _ReadCardPageState extends State<ReadCardPage> {
         case 'sector':
           // 读取单个扇区
           final sector = int.tryParse(_sectorController.text) ?? 0;
+          setState(() {
+            _readingProgress = 0;
+            _readingTotal = sector + 1;
+          });
+          
           final data = await _pn532Service.readMifareSectors(
             uid: card.uid,
             keys: keys,
             sectors: sector + 1,
+            onProgress: (current, total) {
+              setState(() {
+                _readingProgress = current;
+                _readingTotal = total;
+              });
+            },
           );
           setState(() => _sectorData = {sector: data[sector] ?? []});
           break;

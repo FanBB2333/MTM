@@ -245,6 +245,8 @@ class PN532Service extends ChangeNotifier {
     required Uint8List uid,
     required List<Uint8List> keys,
     int sectors = 16,  // Mifare 1K = 16扇区, 4K = 40扇区
+    void Function(int current, int total)? onProgress,
+    int maxRetries = 3,  // 每个扇区最大重试次数
   }) async {
     final result = <int, List<Uint8List?>>{};
     
@@ -254,53 +256,87 @@ class PN532Service extends ChangeNotifier {
     }
     
     for (int sector = 0; sector < sectors; sector++) {
-      final blocks = <Uint8List?>[];
-      final firstBlock = sector * 4;
-      bool sectorAuthed = false;
+      // 报告进度
+      onProgress?.call(sector, sectors);
       
-      // 尝试列表中的所有密钥
-      for (final key in keys) {
-        // 尝试A密钥认证
-        bool authed = await mifareAuth(firstBlock, uid, key: key, keyType: 'A');
+      List<Uint8List?>? sectorBlocks;
+      
+      // 重试逻辑
+      for (int retry = 0; retry < maxRetries; retry++) {
+        sectorBlocks = await _readSingleSector(sector, uid, keys);
         
-        // 如果A失败，尝试B密钥认证
-        if (!authed) {
-          authed = await mifareAuth(firstBlock, uid, key: key, keyType: 'B');
+        // 检查是否成功读取到数据（至少有一个非null的块）
+        if (sectorBlocks != null && sectorBlocks.any((block) => block != null)) {
+          break;  // 成功读取，退出重试循环
         }
         
-        if (authed) {
-          sectorAuthed = true;
-          // 认证成功，读取该扇区的4个块
-          for (int i = 0; i < 4; i++) {
-            // 注意：Mifare Classic 读取每个块之前最好都确保认证状态
-            // 但通常同一扇区内一次认证即可
-            // 如果读取失败，尝试重新认证
-            Uint8List? blockData = await mifareReadBlock(firstBlock + i);
-            
-            if (blockData == null) {
-              // 读取失败，尝试重新认证再读
-             final reAuthed = await mifareAuth(firstBlock, uid, key: key, keyType: 'A') || 
-                              await mifareAuth(firstBlock, uid, key: key, keyType: 'B');
-             if (reAuthed) {
-               blockData = await mifareReadBlock(firstBlock + i);
-             }
-            }
-            blocks.add(blockData);
-          }
-          // 只要找到一个能认证的密钥并读取完成，就跳出密钥循环，处理下一个扇区
-          break;
+        // 如果失败，等待一小段时间再重试
+        if (retry < maxRetries - 1) {
+          debugPrint('扇区 $sector 读取失败，重试 ${retry + 1}/$maxRetries');
+          await Future.delayed(const Duration(milliseconds: 100));
         }
       }
       
-      if (!sectorAuthed) {
-        // 所有密钥都无法认证该扇区
-        blocks.addAll([null, null, null, null]);
-      }
-      
-      result[sector] = blocks;
+      result[sector] = sectorBlocks ?? [null, null, null, null];
     }
     
+    // 最终进度
+    onProgress?.call(sectors, sectors);
+    
     return result;
+  }
+
+  /// 读取单个扇区
+  Future<List<Uint8List?>?> _readSingleSector(
+    int sector, 
+    Uint8List uid, 
+    List<Uint8List> keys,
+  ) async {
+    final blocks = <Uint8List?>[];
+    final firstBlock = sector * 4;
+    
+    // 尝试列表中的所有密钥
+    for (final key in keys) {
+      // 重要：每次尝试新密钥前，需要重新寻卡
+      // 因为认证失败后，卡片会进入"卡住"状态
+      final reselect = await _driver!.readPassiveTarget(timeoutMs: 300);
+      if (reselect == null) {
+        // 无法重新选中卡片，跳过这个密钥
+        continue;
+      }
+      
+      // 尝试A密钥认证
+      bool authed = await mifareAuth(firstBlock, uid, key: key, keyType: 'A');
+      
+      // 如果A失败，需要重新寻卡再尝试B密钥
+      if (!authed) {
+        final reselectB = await _driver!.readPassiveTarget(timeoutMs: 300);
+        if (reselectB != null) {
+          authed = await mifareAuth(firstBlock, uid, key: key, keyType: 'B');
+        }
+      }
+      
+      if (authed) {
+        // 认证成功，读取该扇区的4个块
+        for (int i = 0; i < 4; i++) {
+          Uint8List? blockData = await mifareReadBlock(firstBlock + i);
+          
+          if (blockData == null) {
+            // 读取失败，尝试重新认证再读
+            final reAuthed = await mifareAuth(firstBlock, uid, key: key, keyType: 'A') || 
+                            await mifareAuth(firstBlock, uid, key: key, keyType: 'B');
+            if (reAuthed) {
+              blockData = await mifareReadBlock(firstBlock + i);
+            }
+          }
+          blocks.add(blockData);
+        }
+        return blocks;  // 成功读取，返回
+      }
+    }
+    
+    // 所有密钥都无法认证该扇区
+    return null;
   }
 
   @override
