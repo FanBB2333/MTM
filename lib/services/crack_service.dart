@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'pn532_service.dart';
@@ -105,21 +106,23 @@ class CrackService {
 
       _currentProcess = await Process.start('mfoc', args, environment: environment);
       
-      // 监听 stdout
-      _currentProcess!.stdout.transform(const SystemEncoding().decoder).listen((data) {
-        for (final line in data.split('\n')) {
-          if (line.isNotEmpty) {
-            _outputController.add(line);
-          }
+      // 监听 stdout - 使用 LineSplitter 实时逐行输出
+      _currentProcess!.stdout
+          .transform(const SystemEncoding().decoder)
+          .transform(const LineSplitter())
+          .listen((line) {
+        if (line.isNotEmpty) {
+          _outputController.add(line);
         }
       });
 
       // 监听 stderr
-      _currentProcess!.stderr.transform(const SystemEncoding().decoder).listen((data) {
-        for (final line in data.split('\n')) {
-          if (line.isNotEmpty) {
-            _outputController.add('[stderr] $line');
-          }
+      _currentProcess!.stderr
+          .transform(const SystemEncoding().decoder)
+          .transform(const LineSplitter())
+          .listen((line) {
+        if (line.isNotEmpty) {
+          _outputController.add('[stderr] $line');
         }
       });
 
@@ -226,21 +229,23 @@ class CrackService {
       
       _currentProcess = await Process.start('mfcuk', args, environment: environment);
       
-      // 监听 stdout
-      _currentProcess!.stdout.transform(const SystemEncoding().decoder).listen((data) {
-        for (final line in data.split('\n')) {
-          if (line.isNotEmpty) {
-            _outputController.add(line);
-          }
+      // 监听 stdout - 使用 LineSplitter 实时逐行输出
+      _currentProcess!.stdout
+          .transform(const SystemEncoding().decoder)
+          .transform(const LineSplitter())
+          .listen((line) {
+        if (line.isNotEmpty) {
+          _outputController.add(line);
         }
       });
 
       // 监听 stderr
-      _currentProcess!.stderr.transform(const SystemEncoding().decoder).listen((data) {
-        for (final line in data.split('\n')) {
-          if (line.isNotEmpty) {
-            _outputController.add('[stderr] $line');
-          }
+      _currentProcess!.stderr
+          .transform(const SystemEncoding().decoder)
+          .transform(const LineSplitter())
+          .listen((line) {
+        if (line.isNotEmpty) {
+          _outputController.add('[stderr] $line');
         }
       });
 

@@ -127,27 +127,23 @@ class _ReadCardPageState extends State<ReadCardPage> {
                     
                     const SizedBox(height: 32),
 
-                    if (!isConnected)
-                      _buildNotConnectedWarning(l10n)
-                    else ...[
-                      // 读取模式选择
-                      _buildModeSection(l10n),
-                      
-                      const SizedBox(height: 24),
-                      
-                      // 密钥输入
-                      _buildKeySection(l10n),
-                      
-                      const SizedBox(height: 32),
-                      
-                      // 读取按钮
-                      _buildReadButton(l10n),
-                      
-                      // 错误信息
-                      if (_errorMessage != null) ...[
-                        const SizedBox(height: 16),
-                        _buildErrorMessage(),
-                      ],
+                    // 读取模式选择
+                    _buildModeSection(l10n),
+                    
+                    const SizedBox(height: 24),
+                    
+                    // 密钥输入
+                    _buildKeySection(l10n),
+                    
+                    const SizedBox(height: 32),
+                    
+                    // 读取按钮和破解按钮
+                    _buildActionButtons(l10n, isConnected),
+                    
+                    // 错误信息
+                    if (_errorMessage != null) ...[
+                      const SizedBox(height: 16),
+                      _buildErrorMessage(),
                     ],
                   ],
                 ),
@@ -156,10 +152,9 @@ class _ReadCardPageState extends State<ReadCardPage> {
               const SizedBox(height: 24),
               
               // 数据展示区
-              if (isConnected)
-                Expanded(
-                  child: _buildDataView(l10n),
-                ),
+              Expanded(
+                child: _buildDataView(l10n),
+              ),
             ],
           ),
         ),
@@ -183,41 +178,6 @@ class _ReadCardPageState extends State<ReadCardPage> {
           ),
         ],
       ],
-    );
-  }
-
-
-  Widget _buildNotConnectedWarning(AppLocalizations l10n) {
-    return Expanded(
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              CupertinoIcons.exclamationmark_triangle,
-              size: 64,
-              color: AppColors.warning,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              l10n.pn532NotConnected,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              l10n.goToConnectPage,
-              style: TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -352,14 +312,15 @@ class _ReadCardPageState extends State<ReadCardPage> {
     );
   }
 
-  Widget _buildReadButton(AppLocalizations l10n) {
+  Widget _buildActionButtons(AppLocalizations l10n, bool isConnected) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // 读取按钮
         SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(
-            onPressed: _isReading ? null : _startReading,
+            onPressed: (!isConnected || _isReading) ? null : _startReading,
             icon: _isReading
                 ? const CupertinoActivityIndicator(radius: 10)
                 : const Icon(CupertinoIcons.creditcard),
@@ -392,6 +353,40 @@ class _ReadCardPageState extends State<ReadCardPage> {
             ),
           ),
         ],
+        
+        const SizedBox(height: 16),
+        
+        // 破解按钮 - 不需要先读卡
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            ElevatedButton.icon(
+              onPressed: (!isConnected || _isCracking) ? null : _crackWithMfoc,
+              icon: _isCracking 
+                  ? const CupertinoActivityIndicator(radius: 8)
+                  : const Icon(CupertinoIcons.lock_open, size: 16),
+              label: Text(l10n.crackWithMfoc),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.textPrimary,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+            ),
+            ElevatedButton.icon(
+              onPressed: (!isConnected || _isCracking) ? null : _crackWithMfcuk,
+              icon: _isCracking 
+                  ? const CupertinoActivityIndicator(radius: 8)
+                  : const Icon(CupertinoIcons.lock_shield, size: 16),
+              label: Text(l10n.crackWithMfcuk),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.warning,
+                foregroundColor: AppColors.textPrimary,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }
@@ -456,33 +451,7 @@ class _ReadCardPageState extends State<ReadCardPage> {
                 alignment: WrapAlignment.end,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                // 破解按钮
-                if (_currentCard != null) ...[
-                  ElevatedButton.icon(
-                    onPressed: _isCracking ? null : _crackWithMfoc,
-                    icon: _isCracking 
-                        ? const CupertinoActivityIndicator(radius: 8)
-                        : const Icon(CupertinoIcons.lock_open, size: 16),
-                    label: Text(l10n.crackWithMfoc),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: AppColors.textPrimary,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    ),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: _isCracking ? null : _crackWithMfcuk,
-                    icon: _isCracking 
-                        ? const CupertinoActivityIndicator(radius: 8)
-                        : const Icon(CupertinoIcons.lock_shield, size: 16),
-                    label: Text(l10n.crackWithMfcuk),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.warning,
-                      foregroundColor: AppColors.textPrimary,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    ),
-                  ),
-                ],
+                // 只保留保存和复制按钮，破解按钮已移到主界面
                 ElevatedButton.icon(
                   onPressed: _saveToFile,
                   icon: const Icon(CupertinoIcons.square_arrow_down, size: 16),
@@ -1011,17 +980,7 @@ class _ReadCardPageState extends State<ReadCardPage> {
 
   /// 使用 mfoc 破解卡片
   Future<void> _crackWithMfoc() async {
-    if (_currentCard == null) {
-      final l10n = AppLocalizations.of(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(l10n.noCardForCrack),
-          behavior: SnackBarBehavior.floating,
-          width: 300,
-        ),
-      );
-      return;
-    }
+    // 不再要求必须先读卡，工具会自动检测卡片
 
     setState(() {
       _showTerminal = true;
@@ -1056,7 +1015,7 @@ class _ReadCardPageState extends State<ReadCardPage> {
     try {
       // 生成输出文件路径
       final tempDir = await getTemporaryDirectory();
-      final uid = _currentCard!.uidHex.replaceAll(':', '');
+      final uid = _currentCard?.uidHex.replaceAll(':', '') ?? DateTime.now().millisecondsSinceEpoch.toString();
       final outputPath = '${tempDir.path}/card_$uid.mfd';
 
       // 获取已知密钥（从输入框）
@@ -1123,17 +1082,7 @@ class _ReadCardPageState extends State<ReadCardPage> {
 
   /// 使用 mfcuk 破解卡片
   Future<void> _crackWithMfcuk() async {
-    if (_currentCard == null) {
-      final l10n = AppLocalizations.of(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(l10n.noCardForCrack),
-          behavior: SnackBarBehavior.floating,
-          width: 300,
-        ),
-      );
-      return;
-    }
+    // 不再要求必须先读卡，工具会自动检测卡片
 
     setState(() {
       _showTerminal = true;
@@ -1168,7 +1117,7 @@ class _ReadCardPageState extends State<ReadCardPage> {
     try {
       // 生成输出文件路径
       final tempDir = await getTemporaryDirectory();
-      final uid = _currentCard!.uidHex.replaceAll(':', '');
+      final uid = _currentCard?.uidHex.replaceAll(':', '') ?? DateTime.now().millisecondsSinceEpoch.toString();
       final outputPath = '${tempDir.path}/card_$uid.mfd';
 
       // mfcuk 不需要已知密钥，但也尝试从当前列表获取作为参考? mfcuk 主要是找第一个密钥

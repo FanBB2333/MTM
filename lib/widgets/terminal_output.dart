@@ -201,25 +201,28 @@ class TerminalOutputState extends State<TerminalOutput> {
       );
     }
 
-    return ListView.builder(
-      controller: _scrollController,
-      padding: const EdgeInsets.all(12),
-      itemCount: _lines.length,
-      itemBuilder: (context, index) {
-        final line = _lines[index];
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 1),
-          child: SelectableText(
-            line,
-            style: TextStyle(
-              fontFamily: 'monospace',
-              fontSize: 12,
-              color: _getLineColor(line),
-              height: 1.4,
+    // Use SelectionArea to enable cross-line text selection
+    return SelectionArea(
+      child: ListView.builder(
+        controller: _scrollController,
+        padding: const EdgeInsets.all(12),
+        itemCount: _lines.length,
+        itemBuilder: (context, index) {
+          final line = _lines[index];
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 1),
+            child: Text(
+              line,
+              style: TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 12,
+                color: _getLineColor(line),
+                height: 1.4,
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
